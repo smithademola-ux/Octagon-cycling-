@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Octagon Cycling</title>
+<meta name="theme-color" content="#14171a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============ tokens ============ */
+:root{
+  --bg:#f4f1ec;
+  --surface:#ffffff;
+  --surface-2:#ece7dd;
+  --border:#ddd5c6;
+  --text:#1c1f22;
+  --text-muted:#7a7266;
+  --accent:#c8481f;
+  --accent-ink:#fff6f0;
+  --accent-soft:#f6e0d2;
+  --danger:#b6392b;
+  --success:#2f7a52;
+  --zone1:#3f7fce;
+  --zone2:#3f9e6d;
+  --zone3:#c99a2e;
+  --zone4:#d1741f;
+  --zone5:#b6392b;
+  --shadow:0 1px 2px rgba(28,20,10,.06), 0 8px 24px -12px rgba(28,20,10,.18);
+  --radius-s:8px;
+  --radius-m:14px;
+  --radius-l:20px;
+  --font-display:'Oswald',Impact,'Arial Narrow',sans-serif;
+  --font-body:'Manrope',system-ui,-apple-system,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171a;
+    --surface:#1e2328;
+    --surface-2:#262c31;
+    --border:#343b41;
+    --text:#eef0f2;
+    --text-muted:#9aa2a9;
+    --accent:#ff8452;
+    --accent-ink:#1c1006;
+    --accent-soft:#3c2417;
+    --danger:#ff7a6c;
+    --success:#5ecb92;
+    --zone1:#72aaf2;
+    --zone2:#5ecb92;
+    --zone3:#f0c559;
+    --zone4:#f3985a;
+    --zone5:#ff7a6c;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171a;
+  --surface:#1e2328;
+  --surface-2:#262c31;
+  --border:#343b41;
+  --text:#eef0f2;
+  --text-muted:#9aa2a9;
+  --accent:#ff8452;
+  --accent-ink:#1c1006;
+  --accent-soft:#3c2417;
+  --danger:#ff7a6c;
+  --success:#5ecb92;
+  --zone1:#72aaf2;
+  --zone2:#5ecb92;
+  --zone3:#f0c559;
+  --zone4:#f3985a;
+  --zone5:#ff7a6c;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3{font-family:var(--font-display);text-transform:uppercase;letter-spacing:.02em;text-wrap:balance;margin:0;}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+button{font-family:inherit;}
+::selection{background:var(--accent-soft);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* ============ shell ============ */
+.app{
+  max-width:480px;
+  margin:0 auto;
+  min-height:100vh;
+  background:var(--bg);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+.topbar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:9px;}
+.brand-mark{
+  width:30px;height:30px;border-radius:8px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.brand-mark svg{width:18px;height:18px;stroke:var(--accent-ink);}
+.brand-name{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:.04em;line-height:1.05;}
+.brand-sub{display:block;font-size:9.5px;font-weight:500;letter-spacing:.22em;color:var(--accent);margin-top:1px;}
+.icon-btn{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--border);
+  background:var(--surface);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);transition:background .15s;
+}
+.icon-btn:hover{background:var(--surface-2);}
+.icon-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;}
+
+.screens{flex:1;padding:16px 16px 100px;overflow-x:hidden;}
+.screen{display:none;animation:fadein .2s ease;}
+.screen.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+.bottomnav{
+  position:sticky;bottom:0;z-index:20;
+  display:grid;grid-template-columns:repeat(5,1fr);
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+.navbtn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;padding:8px 2px;border-radius:var(--radius-s);
+  color:var(--text-muted);cursor:pointer;font-size:11px;font-weight:600;
+}
+.navbtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;}
+.navbtn.active{color:var(--accent);}
+
+/* ============ generic components ============ */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);
+  padding:16px;margin-bottom:12px;box-shadow:var(--shadow);
+}
+.card-flat{background:var(--surface-2);border-radius:var(--radius-s);padding:12px;}
+.section-title{font-size:13px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:22px 0 10px;}
+.section-title:first-child{margin-top:0;}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.stack{display:flex;flex-direction:column;gap:10px;}
+.muted{color:var(--text-muted);}
+.small{font-size:12.5px;}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;
+  font-size:11.5px;font-weight:700;background:var(--surface-2);color:var(--text-muted);
+}
+.pill.on{background:var(--success);color:#fff;}
+.pill.off{background:var(--surface-2);color:var(--text-muted);}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 18px;border-radius:var(--radius-s);border:1px solid var(--border);
+  background:var(--surface);color:var(--text);font-weight:700;font-size:14.5px;
+  cursor:pointer;width:100%;transition:transform .08s, background .15s;
+}
+.btn:active{transform:scale(.98);}
+.btn svg{width:17px;height:17px;stroke:currentColor;fill:none;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+.btn-ghost{background:transparent;}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+.btn-sm{padding:8px 14px;font-size:13px;width:auto;}
+.btn-row{display:flex;gap:10px;}
+.btn-row .btn{flex:1;}
+.btn[disabled]{opacity:.45;cursor:not-allowed;}
+
+input[type=text],input[type=number],select,textarea{
+  width:100%;padding:11px 12px;border-radius:var(--radius-s);border:1px solid var(--border);
+  background:var(--surface);color:var(--text);font-family:inherit;font-size:14.5px;
+}
+label{font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;}
+.field{margin-bottom:14px;}
+
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.statgrid.cols3{grid-template-columns:repeat(3,1fr);}
+.stat{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);
+  padding:14px 14px 12px;box-shadow:var(--shadow);
+}
+.stat-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;}
+.stat-value{font-family:var(--font-mono);font-size:27px;font-weight:600;line-height:1.25;margin-top:2px;}
+.stat-unit{font-size:13px;color:var(--text-muted);font-weight:500;margin-left:3px;}
+.stat.big{grid-column:1/-1;}
+.stat.big .stat-value{font-size:44px;}
+.stat.accent .stat-value{color:var(--accent);}
+
+.empty{
+  text-align:center;padding:38px 16px;color:var(--text-muted);
+}
+.empty svg{width:40px;height:40px;stroke:var(--text-muted);opacity:.5;margin-bottom:10px;}
+.empty-title{color:var(--text);font-weight:700;margin-bottom:4px;font-family:var(--font-display);text-transform:uppercase;letter-spacing:.03em;font-size:16px;}
+
+.toastwrap{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:calc(100% - 32px);max-width:448px;pointer-events:none;}
+.toast{background:var(--text);color:var(--bg);padding:11px 16px;border-radius:var(--radius-s);font-size:13.5px;font-weight:600;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);transition:all .25s;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* overlay panel (settings) */
+.overlay{position:fixed;inset:0;background:rgba(10,8,5,.4);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.open{opacity:1;pointer-events:auto;}
+.panel{
+  position:fixed;top:0;right:0;height:100%;width:min(390px,92vw);z-index:41;
+  background:var(--bg);border-left:1px solid var(--border);
+  transform:translateX(100%);transition:transform .25s ease;
+  display:flex;flex-direction:column;
+}
+.panel.open{transform:translateX(0);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);}
+.panel-body{flex:1;overflow-y:auto;padding:16px 18px 40px;}
+
+/* zone badge */
+.zonebadge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:700;color:#fff;}
+.z1{background:var(--zone1);} .z2{background:var(--zone2);} .z3{background:var(--zone3);color:#332400;} .z4{background:var(--zone4);} .z5{background:var(--zone5);}
+
+/* interval chip list */
+.ivlist{display:flex;flex-direction:column;gap:8px;}
+.ivchip{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:var(--radius-s);padding:9px 11px;}
+.ivchip .bar{width:5px;align-self:stretch;border-radius:3px;}
+.ivchip .meta{flex:1;font-size:13px;}
+.ivchip .dur{font-family:var(--font-mono);font-size:13px;color:var(--text-muted);}
+.ivchip button{background:none;border:none;color:var(--text-muted);cursor:pointer;}
+
+.tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--accent-soft);color:var(--accent);padding:3px 8px;border-radius:6px;}
+
+.workout-card{cursor:pointer;}
+.workout-card:active{transform:scale(.99);}
+
+canvas{display:block;width:100%;border-radius:var(--radius-s);background:var(--surface-2);}
+
+.segctrl{display:flex;background:var(--surface-2);border-radius:var(--radius-s);padding:3px;gap:3px;}
+.segctrl button{flex:1;border:none;background:transparent;padding:9px 6px;border-radius:6px;font-weight:700;font-size:12.5px;color:var(--text-muted);cursor:pointer;}
+.segctrl button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow);}
+
+.switch{position:relative;width:42px;height:25px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.switch .track{position:absolute;inset:0;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;transition:.2s;cursor:pointer;}
+.switch .track:before{content:"";position:absolute;width:19px;height:19px;left:2px;top:2px;background:var(--surface);border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+.switch input:checked + .track{background:var(--accent);border-color:var(--accent);}
+.switch input:checked + .track:before{transform:translateX(17px);background:var(--accent-ink);}
+
+.divider{height:1px;background:var(--border);margin:16px 0;}
+
+.diag{font-family:var(--font-mono);font-size:11.5px;background:var(--surface-2);border-radius:var(--radius-s);padding:10px;max-height:160px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;color:var(--text-muted);}
+
+.sensorrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.sensorrow:last-child{border-bottom:none;}
+.sensorrow .ic{width:34px;height:34px;border-radius:9px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sensorrow .ic svg{width:17px;height:17px;stroke:var(--text-muted);}
+.sensorrow.linked .ic{background:var(--accent-soft);}
+.sensorrow.linked .ic svg{stroke:var(--accent);}
+.sensorrow .info{flex:1;min-width:0;}
+.sensorrow .name{font-weight:700;font-size:13.5px;}
+.sensorrow .sub{font-size:11.5px;color:var(--text-muted);}
+
+.miniplayer{
+  display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:var(--radius-s);
+  padding:9px 10px;margin-top:10px;
+}
+.miniplayer .info{flex:1;min-width:0;font-size:12.5px;}
+.miniplayer .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.miniplayer button{background:none;border:none;color:var(--text);cursor:pointer;padding:5px;}
+.miniplayer svg{width:18px;height:18px;stroke:currentColor;fill:none;}
+
+.helpbox{background:var(--accent-soft);border-radius:var(--radius-s);padding:12px 13px;font-size:12.5px;color:var(--text);display:flex;gap:10px;align-items:flex-start;}
+.helpbox svg{width:16px;height:16px;stroke:var(--accent);flex-shrink:0;margin-top:1px;}
+
+a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:pointer;}
+</style>
+
+
+</head>
+<body>
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="6"/><circle cx="8" cy="15" r="1.3" fill="currentColor" stroke="none"/><path d="M8 15L14 6"/><path d="M14 6h3"/><path d="M8 15h6.5"/><path d="M14.5 15L17 9"/><path d="M15.5 8.6h3"/></svg>
+      </div>
+      <div class="brand-name">OCTAGON<span class="brand-sub">Cycling</span></div>
+    </div>
+    <button class="icon-btn" id="btn-open-settings" aria-label="Ajustes">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.63.8 1.11 1.56 1.04H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></svg>
+    </button>
+  </div>
+
+  <div class="screens" id="screens">
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="screen active" id="screen-dashboard" data-screen="dashboard">
+      <div class="section-title" id="dash-greeting">Hola</div>
+      <div class="statgrid" id="dash-week-stats">
+        <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-value" id="dash-week-km">0<span class="stat-unit">km</span></div></div>
+        <div class="stat"><div class="stat-label">Sesiones</div><div class="stat-value" id="dash-week-count">0</div></div>
+      </div>
+
+      <div class="section-title">Empezar</div>
+      <div class="stack">
+        <button class="btn btn-primary" data-goto="outdoor" style="padding:18px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M2 12h4l2-5 3 10 2-7 2 4h7"/></svg>
+          Salida exterior (GPS)
+        </button>
+        <button class="btn" data-goto="indoor" style="padding:18px;background:var(--surface);">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01"/></svg>
+          Entrenamiento indoor
+        </button>
+      </div>
+
+      <div class="section-title">Última sesión</div>
+      <div id="dash-last-session"></div>
+
+      <div class="section-title">Tus zonas de potencia</div>
+      <div class="card" id="dash-zones"></div>
+    </section>
+
+    <!-- ============ OUTDOOR ============ -->
+    <section class="screen" id="screen-outdoor" data-screen="outdoor">
+      <h2 style="font-size:22px;margin-bottom:4px;">Exterior</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <span class="pill" id="out-gps-pill"><span class="dot"></span><span>GPS: buscando…</span></span>
+        <span class="pill" id="out-hr-pill" style="display:none;"><span class="dot"></span><span>FC —</span></span>
+      </div>
+
+      <div class="statgrid">
+        <div class="stat big"><div class="stat-label">Tiempo</div><div class="stat-value mono" id="out-time">00:00:00</div></div>
+        <div class="stat"><div class="stat-label">Distancia</div><div class="stat-value" id="out-dist">0.00<span class="stat-unit">km</span></div></div>
+        <div class="stat"><div class="stat-label">Velocidad</div><div class="stat-value" id="out-speed">0.0<span class="stat-unit">km/h</span></div></div>
+        <div class="stat"><div class="stat-label">Vel. media</div><div class="stat-value" id="out-avgspeed">0.0<span class="stat-unit">km/h</span></div></div>
+        <div class="stat"><div class="stat-label">Desnivel +</div><div class="stat-value" id="out-elev">0<span class="stat-unit">m</span></div></div>
+      </div>
+
+      <div class="section-title">Recorrido</div>
+      <canvas id="out-canvas" height="220"></canvas>
+
+      <div class="section-title">Controles</div>
+      <div class="btn-row" id="out-controls">
+        <button class="btn btn-primary" id="out-btn-start">Empezar</button>
+      </div>
+
+      <div class="helpbox" style="margin-top:14px;" id="out-permhelp">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>Al pulsar «Empezar» tu navegador te pedirá permiso de ubicación. Acéptalo y mantén la pantalla activa durante la salida.</div>
+      </div>
+    </section>
+
+    <!-- ============ INDOOR ============ -->
+    <section class="screen" id="screen-indoor" data-screen="indoor">
+      <h2 style="font-size:22px;margin-bottom:4px;">Indoor</h2>
+
+      <div class="section-title">Sensores</div>
+      <div class="card" style="padding:6px 14px;">
+        <div class="sensorrow" id="row-trainer">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div>
+          <div class="info"><div class="name">Bicicleta</div><div class="sub" id="trainer-sub">No conectado</div></div>
+          <button class="btn btn-sm" id="btn-connect-trainer">Conectar</button>
+        </div>
+        <div class="sensorrow" id="row-hr">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20.8 8.6c0 5-8.8 10-8.8 10s-8.8-5-8.8-10a4.6 4.6 0 0 1 8.8-1.8A4.6 4.6 0 0 1 20.8 8.6z"/></svg></div>
+          <div class="info"><div class="name">Pulsómetro</div><div class="sub" id="hr-sub">No conectado</div></div>
+          <button class="btn btn-sm" id="btn-connect-hr">Conectar</button>
+        </div>
+      </div>
+
+      <div class="section-title">En vivo</div>
+      <div class="statgrid cols3">
+        <div class="stat accent"><div class="stat-label">Potencia</div><div class="stat-value" id="in-power">–<span class="stat-unit">W</span></div></div>
+        <div class="stat"><div class="stat-label">Cadencia</div><div class="stat-value" id="in-cad">–<span class="stat-unit">rpm</span></div></div>
+        <div class="stat"><div class="stat-label">FC</div><div class="stat-value" id="in-hr">–<span class="stat-unit">ppm</span></div></div>
+      </div>
+      <div class="statgrid" style="margin-top:10px;">
+        <div class="stat"><div class="stat-label">Tiempo</div><div class="stat-value mono" id="in-time">00:00:00</div></div>
+        <div class="stat"><div class="stat-label">Kcal (est.)</div><div class="stat-value" id="in-kcal">0</div></div>
+      </div>
+
+      <div class="section-title">Entrenamiento</div>
+      <div class="card" id="in-workout-picker">
+        <div class="row">
+          <div>
+            <div style="font-weight:700;" id="in-workout-name">Modo libre (sin plan)</div>
+            <div class="small muted" id="in-workout-sub">Elige un entreno estructurado o pedalea libre</div>
+          </div>
+          <button class="btn btn-sm" id="btn-pick-workout">Elegir</button>
+        </div>
+        <div id="in-workout-chart-wrap" style="display:none;margin-top:12px;">
+          <canvas id="in-workout-canvas" height="90"></canvas>
+          <div class="row" style="margin-top:10px;">
+            <div class="small muted">Ahora: <b id="in-interval-label">–</b></div>
+            <div class="small mono" id="in-interval-time">00:00</div>
+          </div>
+          <div class="row" style="margin-top:8px;" id="in-erg-row">
+            <div class="small">Control ERG automático</div>
+            <label class="switch"><input type="checkbox" id="in-erg-toggle"><span class="track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div id="in-music-wrap"></div>
+
+      <div class="section-title">Controles</div>
+      <div class="btn-row" id="in-controls">
+        <button class="btn btn-primary" id="in-btn-start">Empezar</button>
+      </div>
+
+      <details style="margin-top:16px;">
+        <summary class="muted small" style="cursor:pointer;font-weight:700;">Panel de diagnóstico</summary>
+        <div class="diag" id="in-diag" style="margin-top:8px;">Sin datos todavía.</div>
+      </details>
+    </section>
+
+    <!-- ============ WORKOUTS ============ -->
+    <section class="screen" id="screen-workouts" data-screen="workouts">
+      <div class="row" style="margin-bottom:14px;">
+        <h2 style="font-size:22px;">Entrenos</h2>
+        <button class="btn btn-sm btn-primary" id="btn-new-workout">+ Crear</button>
+      </div>
+      <div class="section-title">Plantillas</div>
+      <div class="stack" id="workouts-builtin"></div>
+      <div class="section-title">Tus entrenos</div>
+      <div class="stack" id="workouts-custom"></div>
+    </section>
+
+    <!-- ============ HISTORY ============ -->
+    <section class="screen" id="screen-history" data-screen="history">
+      <h2 style="font-size:22px;margin-bottom:14px;">Historial</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="segctrl" style="flex:1;" id="hist-filter">
+          <button class="active" data-filter="all">Todo</button>
+          <button data-filter="outdoor">Exterior</button>
+          <button data-filter="indoor">Indoor</button>
+        </div>
+        <button class="icon-btn" id="btn-export-csv" aria-label="Exportar CSV" style="margin-left:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        </button>
+      </div>
+      <div class="section-title">Progreso semanal</div>
+      <canvas id="hist-chart" height="130"></canvas>
+      <div class="section-title">Sesiones</div>
+      <div class="stack" id="hist-list"></div>
+    </section>
+
+  </div>
+
+  <div class="bottomnav" id="bottomnav">
+    <button class="navbtn active" data-screen="dashboard"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</button>
+    <button class="navbtn" data-screen="outdoor"><svg viewBox="0 0 24 24"><path d="M2 20h4l2-6 4 12 3-9 2 3h5"/></svg>Exterior</button>
+    <button class="navbtn" data-screen="indoor"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h.01M12 11h.01M17 11h.01"/></svg>Indoor</button>
+    <button class="navbtn" data-screen="workouts"><svg viewBox="0 0 24 24"><path d="M3 17l4-7 3 4 4-9 4 6 3-3"/></svg>Entrenos</button>
+    <button class="navbtn" data-screen="history"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="6" y="12" width="3" height="6"/><rect x="11" y="8" width="3" height="10"/><rect x="16" y="5" width="3" height="13"/></svg>Historial</button>
+  </div>
+</div>
+
+<!-- settings panel -->
+<div class="overlay" id="settings-overlay"></div>
+<div class="panel" id="settings-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Ajustes</h3>
+    <button class="icon-btn" id="btn-close-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <div class="section-title" style="margin-top:0;">Perfil</div>
+    <div class="field"><label>FTP (potencia umbral, W)</label><input type="number" id="set-ftp" min="30" max="600"></div>
+    <div class="field"><label>Frecuencia cardíaca máxima</label><input type="number" id="set-hrmax" min="100" max="230"></div>
+    <div class="field"><label>Peso (kg)</label><input type="number" id="set-weight" min="30" max="200"></div>
+    <div class="field"><label>Circunferencia de rueda (mm)</label><input type="number" id="set-wheel" min="1000" max="2500"></div>
+    <button class="btn btn-primary" id="btn-save-settings">Guardar</button>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-top:0;">Música</div>
+    <div class="small muted" style="margin-bottom:10px;">Octagon Cycling no puede controlar Spotify u otras apps desde el navegador, pero puedes cargar tus propias canciones (mp3) para escucharlas mientras entrenas.</div>
+    <input type="file" id="music-file-input" accept="audio/*" multiple style="display:none;">
+    <button class="btn btn-sm" id="btn-add-music">Añadir canciones del móvil</button>
+    <div id="music-list" style="margin-top:10px;"></div>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-top:0;">Diagnóstico</div>
+    <div class="diag" id="settings-diag"></div>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-top:0;">Datos</div>
+    <div class="small muted" id="storage-status" style="margin-bottom:10px;"></div>
+    <button class="btn btn-sm btn-danger" id="btn-clear-data">Borrar todos mis datos</button>
+  </div>
+</div>
+
+<!-- workout picker sheet -->
+<div class="overlay" id="picker-overlay"></div>
+<div class="panel" id="picker-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Elegir entreno</h3>
+    <button class="icon-btn" id="btn-close-picker"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <button class="btn" id="pick-free" style="margin-bottom:14px;">Modo libre (sin plan)</button>
+    <div id="picker-list" class="stack"></div>
+  </div>
+</div>
+
+<!-- workout editor sheet -->
+<div class="overlay" id="editor-overlay"></div>
+<div class="panel" id="editor-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Nuevo entreno</h3>
+    <button class="icon-btn" id="btn-close-editor"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <div class="field"><label>Nombre</label><input type="text" id="ed-name" placeholder="Ej. Series de 3 minutos"></div>
+    <div class="section-title" style="margin-top:0;">Bloques</div>
+    <div class="ivlist" id="ed-ivlist"></div>
+    <button class="btn btn-sm" id="ed-add-block" style="margin-top:10px;">+ Añadir bloque</button>
+    <div class="divider"></div>
+    <button class="btn btn-primary" id="ed-save">Guardar entreno</button>
+  </div>
+</div>
+
+<!-- session detail sheet -->
+<div class="overlay" id="detail-overlay"></div>
+<div class="panel" id="detail-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;" id="detail-title">Sesión</h3>
+    <button class="icon-btn" id="btn-close-detail"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body" id="detail-body"></div>
+</div>
+
+<div class="toastwrap" id="toastwrap"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= utils ================= */
+const $ = (id)=>document.getElementById(id);
+const qsa = (sel,root)=>Array.from((root||document).querySelectorAll(sel));
+function pad(n){return String(Math.floor(n)).padStart(2,'0');}
+function fmtHMS(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${pad(h)}:${pad(m)}:${pad(s)}`:`${pad(m)}:${pad(s)}`;}
+function fmtMS(sec){sec=Math.max(0,Math.round(sec));return `${pad(Math.floor(sec/60))}:${pad(sec%60)}`;}
+function fmtDateShort(iso){const d=new Date(iso);return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'});}
+function fmtDateLong(iso){const d=new Date(iso);return d.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})+' · '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function toast(msg,ms){
+  const el=document.createElement('div');el.className='toast';el.textContent=msg;
+  $('toastwrap').appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},ms||3200);
+}
+function haversineM(lat1,lon1,lat2,lon2){
+  const R=6371000,toRad=Math.PI/180;
+  const dLat=(lat2-lat1)*toRad, dLon=(lon2-lon1)*toRad;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function powerZone(pct){ // pct of FTP
+  if(pct<60)return 1; if(pct<76)return 2; if(pct<90)return 3; if(pct<105)return 4; return 5;
+}
+const ZONE_NAMES={1:'Recuperación',2:'Resistencia',3:'Tempo',4:'Umbral',5:'VO2max+'};
+
+/* ================= state ================= */
+const state={
+  settings:{ftp:200,hrMax:185,weightKg:75,wheelCircMm:2105},
+  workouts:[], // custom, from db/local
+  sessions:[], // from db/local
+  db:null, downloads:null, dbReady:false,
+  screen:'dashboard',
+  music:{tracks:[],idx:-1,el:new Audio()},
+  diagLog:[],
+};
+
+/* ================= persistence layer ================= */
+const LS_KEY='rodado_v1';
+function lsLoad(){
+  try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}');}catch(e){return {};}
+}
+function lsSave(patch){
+  try{
+    const cur=lsLoad();
+    const next=Object.assign({},cur,patch);
+    localStorage.setItem(LS_KEY,JSON.stringify(next));
+  }catch(e){/* storage unavailable, ignore */}
+}
+
+async function initStorage(){
+  try{
+    if(window.claude && window.claude.use){
+      state.db = await window.claude.use('db');
+      state.downloads = await window.claude.use('downloads');
+    }
+  }catch(e){state.db=null;}
+  state.dbReady = !!state.db;
+  updateStorageStatusUI();
+
+  // settings
+  const local = lsLoad();
+  if(local.settings) Object.assign(state.settings,local.settings);
+  if(state.db){
+    try{
+      const snap = await state.db.doc('settings/main').get();
+      if(snap.exists) Object.assign(state.settings, snap.data());
+      state.db.doc('settings/main').onSnapshot(s=>{ if(s.exists){Object.assign(state.settings,s.data()); renderSettingsForm(); renderDashboard();} });
+    }catch(e){}
+  }
+  renderSettingsForm();
+
+  // workouts
+  if(state.db){
+    try{
+      state.db.collection('workouts').orderBy('createdAt','desc').onSnapshot(qs=>{
+        state.workouts = qs.docs.map(d=>Object.assign({id:d.id},d.data()));
+        renderWorkoutsScreen();
+      }, ()=>{ state.workouts = local.workouts||[]; renderWorkoutsScreen(); });
+    }catch(e){ state.workouts = local.workouts||[]; renderWorkoutsScreen(); }
+  } else {
+    state.workouts = local.workouts||[];
+    renderWorkoutsScreen();
+  }
+
+  // sessions
+  if(state.db){
+    try{
+      state.db.collection('sessions').orderBy('startedAt','desc').limit(200).onSnapshot(qs=>{
+        state.sessions = qs.docs.map(d=>Object.assign({id:d.id},d.data()));
+        renderDashboard(); renderHistoryScreen();
+      }, ()=>{ state.sessions = local.sessions||[]; renderDashboard(); renderHistoryScreen(); });
+    }catch(e){ state.sessions = local.sessions||[]; renderDashboard(); renderHistoryScreen(); }
+  } else {
+    state.sessions = local.sessions||[];
+    renderDashboard(); renderHistoryScreen();
+  }
+}
+
+function updateStorageStatusUI(){
+  const el=$('storage-status');
+  if(!el)return;
+  el.textContent = state.dbReady
+    ? 'Tus datos se guardan de forma segura en tu cuenta de Claude y estarán disponibles la próxima vez que abras Octagon Cycling.'
+    : 'Ahora mismo Octagon Cycling solo puede guardar tus datos en este navegador (no hay sincronización). Abre la app con tu cuenta de Claude iniciada para guardar tu historial de forma permanente.';
+}
+
+async function saveSettings(){
+  lsSave({settings:state.settings});
+  if(state.db){ try{ await state.db.doc('settings/main').set(state.settings); }catch(e){} }
+}
+async function saveWorkout(w){
+  if(state.db){
+    try{ await state.db.collection('workouts').doc(w.id).set(w); return; }catch(e){}
+  }
+  const local=lsLoad(); const list=(local.workouts||[]).filter(x=>x.id!==w.id); list.unshift(w);
+  lsSave({workouts:list}); state.workouts=list; renderWorkoutsScreen();
+}
+async function deleteWorkout(id){
+  if(state.db){ try{ await state.db.collection('workouts').doc(id).delete(); return; }catch(e){} }
+  const local=lsLoad(); const list=(local.workouts||[]).filter(x=>x.id!==id);
+  lsSave({workouts:list}); state.workouts=list; renderWorkoutsScreen();
+}
+async function saveSession(s){
+  s.id = s.id || uid();
+  if(state.db){
+    try{ await state.db.collection('sessions').doc(s.id).set(s); return; }catch(e){}
+  }
+  const local=lsLoad(); const list=(local.sessions||[]).filter(x=>x.id!==s.id); list.unshift(s);
+  lsSave({sessions:list}); state.sessions=list; renderDashboard(); renderHistoryScreen();
+}
+async function clearAllData(){
+  lsSave({settings:state.settings,workouts:[],sessions:[]});
+  state.workouts=[]; state.sessions=[];
+  if(state.db){
+    try{
+      const qs = await state.db.collection('sessions').limit(500).get();
+      for(const d of qs.docs){ await state.db.collection('sessions').doc(d.id).delete(); }
+      const qw = await state.db.collection('workouts').limit(500).get();
+      for(const d of qw.docs){ await state.db.collection('workouts').doc(d.id).delete(); }
+    }catch(e){}
+  }
+  renderDashboard(); renderHistoryScreen(); renderWorkoutsScreen();
+  toast('Datos borrados');
+}
+
+/* ================= navigation ================= */
+function goto(screen){
+  state.screen=screen;
+  qsa('.screen').forEach(s=>s.classList.toggle('active', s.dataset.screen===screen));
+  qsa('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.screen===screen));
+  window.scrollTo(0,0);
+}
+qsa('[data-goto]').forEach(b=>b.addEventListener('click',()=>goto(b.dataset.goto)));
+qsa('.navbtn').forEach(b=>b.addEventListener('click',()=>goto(b.dataset.screen)));
+
+function openPanel(id){ $(id+'-overlay').classList.add('open'); $(id+'-panel').classList.add('open'); }
+function closePanel(id){ $(id+'-overlay').classList.remove('open'); $(id+'-panel').classList.remove('open'); }
+$('btn-open-settings').addEventListener('click',()=>{openPanel('settings');renderDiagPanel();});
+$('btn-close-settings').addEventListener('click',()=>closePanel('settings'));
+$('settings-overlay').addEventListener('click',()=>closePanel('settings'));
+$('btn-close-picker').addEventListener('click',()=>closePanel('picker'));
+$('picker-overlay').addEventListener('click',()=>closePanel('picker'));
+$('btn-close-editor').addEventListener('click',()=>closePanel('editor'));
+$('editor-overlay').addEventListener('click',()=>closePanel('editor'));
+$('btn-close-detail').addEventListener('click',()=>closePanel('detail'));
+$('detail-overlay').addEventListener('click',()=>closePanel('detail'));
+
+/* ================= settings form ================= */
+function renderSettingsForm(){
+  $('set-ftp').value=state.settings.ftp;
+  $('set-hrmax').value=state.settings.hrMax;
+  $('set-weight').value=state.settings.weightKg;
+  $('set-wheel').value=state.settings.wheelCircMm;
+  updateStorageStatusUI();
+}
+$('btn-save-settings').addEventListener('click',async ()=>{
+  state.settings.ftp=Number($('set-ftp').value)||200;
+  state.settings.hrMax=Number($('set-hrmax').value)||185;
+  state.settings.weightKg=Number($('set-weight').value)||75;
+  state.settings.wheelCircMm=Number($('set-wheel').value)||2105;
+  await saveSettings();
+  renderDashboard();
+  toast('Ajustes guardados');
+});
+$('btn-clear-data').addEventListener('click',()=>{
+  if(confirm('¿Seguro que quieres borrar todo tu historial y entrenos? No se puede deshacer.')) clearAllData();
+});
+
+function renderDiagPanel(){
+  const lines=[];
+  lines.push('Bluetooth: '+(navigator.bluetooth?'disponible':'no disponible en este navegador'));
+  lines.push('GPS: '+(navigator.geolocation?'disponible':'no disponible'));
+  lines.push('Almacenamiento en la nube: '+(state.dbReady?'conectado':'no conectado'));
+  lines.push('');
+  lines.push(...state.diagLog.slice(-30));
+  $('settings-diag').textContent=lines.join('\n');
+}
+function logDiag(line){
+  state.diagLog.push('['+new Date().toLocaleTimeString('es-ES')+'] '+line);
+  if(state.diagLog.length>200) state.diagLog.shift();
+  renderDiagPanel();
+  renderInDiag();
+}
+function renderInDiag(){
+  const el=$('in-diag'); if(!el) return;
+  el.textContent = state.diagLog.slice(-20).join('\n') || 'Sin datos todavía.';
+}
+
+/* ================= dashboard ================= */
+function renderDashboard(){
+  const hr=new Date().getHours();
+  $('dash-greeting').textContent = hr<12?'Buenos días':(hr<20?'Buenas tardes':'Buenas noches');
+
+  const weekAgo=Date.now()-7*86400000;
+  const weekSessions = state.sessions.filter(s=>new Date(s.startedAt).getTime()>weekAgo);
+  const weekKm = weekSessions.reduce((a,s)=>a+(s.distanceKm||0),0);
+  $('dash-week-km').innerHTML = weekKm.toFixed(1)+'<span class="stat-unit">km</span>';
+  $('dash-week-count').textContent = weekSessions.length;
+
+  const last = state.sessions[0];
+  const lastEl = $('dash-last-session');
+  if(!last){
+    lastEl.innerHTML = `<div class="empty card">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M4 15l4-8 4 11 3-7 2 4h3"/></svg>
+      <div class="empty-title">Aún no hay sesiones</div>
+      <div class="small">Empieza tu primera salida o entreno indoor para verla aquí.</div>
+    </div>`;
+  } else {
+    lastEl.innerHTML = sessionCardHTML(last);
+    qsa('[data-session-id]',lastEl).forEach(c=>c.addEventListener('click',()=>openSessionDetail(c.dataset.sessionId)));
+  }
+
+  const ftp=state.settings.ftp;
+  const zones=[[1,'Recuperación',0,55],[2,'Resistencia',56,75],[3,'Tempo',76,89],[4,'Umbral',90,104],[5,'VO2max+',105,150]];
+  $('dash-zones').innerHTML = `<div class="small muted" style="margin-bottom:10px;">Basadas en tu FTP de ${ftp} W</div>` + zones.map(z=>{
+    const lo=Math.round(ftp*z[2]/100), hi=z[3]>=150?'+':Math.round(ftp*z[3]/100);
+    return `<div class="row" style="padding:6px 0;"><span class="zonebadge z${z[0]}">Z${z[0]} · ${z[1]}</span><span class="mono small">${lo}${hi==='+'?'+':'–'+hi} W</span></div>`;
+  }).join('');
+}
+
+function sessionCardHTML(s){
+  const icon = s.type==='outdoor'
+    ? '<path d="M2 20h4l2-6 4 12 3-9 2 3h5"/>'
+    : '<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h.01M12 11h.01M17 11h.01"/>';
+  const bits=[];
+  bits.push(fmtHMS(s.durationSec||0));
+  if(s.type==='outdoor') bits.push((s.distanceKm||0).toFixed(1)+' km');
+  if(s.avgPower) bits.push(Math.round(s.avgPower)+' W');
+  if(s.avgHr) bits.push(Math.round(s.avgHr)+' ppm');
+  return `<div class="card row workout-card" data-session-id="${s.id}">
+    <div class="row" style="gap:12px;">
+      <div class="ic" style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" width="18" height="18">${icon}</svg>
+      </div>
+      <div>
+        <div style="font-weight:700;">${s.type==='outdoor'?'Salida exterior':(s.workoutName||'Indoor libre')}</div>
+        <div class="small muted">${fmtDateShort(s.startedAt)} · ${bits.join(' · ')}</div>
+      </div>
+    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" width="16" height="16"><path d="M9 6l6 6-6 6"/></svg>
+  </div>`;
+}
+
+/* ================================================================
+   OUTDOOR MODULE
+   ================================================================ */
+const outdoor = {
+  running:false, paused:false,
+  watchId:null, wakeLock:null,
+  startTs:0, pausedAccum:0, pauseStart:0,
+  distanceM:0, elevGainM:0, lastAlt:null,
+  lastPos:null, track:[], lastRecordTs:0,
+  maxSpeedKmh:0, speedSamples:[],
+  timerId:null,
+};
+
+function outElapsed(){
+  if(!outdoor.running) return 0;
+  const now = outdoor.paused ? outdoor.pauseStart : Date.now();
+  return (now - outdoor.startTs - outdoor.pausedAccum)/1000;
+}
+
+function outdoorGeoHandler(pos){
+  const {latitude:lat, longitude:lon, speed, altitude, accuracy} = pos.coords;
+  $('out-gps-pill').innerHTML = `<span class="dot"></span><span>GPS: ±${Math.round(accuracy||0)} m</span>`;
+  $('out-gps-pill').style.color='var(--success)';
+  if(accuracy && accuracy>40){ return; } // too noisy, skip
+
+  const now=Date.now();
+  if(outdoor.lastPos){
+    const d = haversineM(outdoor.lastPos.lat,outdoor.lastPos.lon,lat,lon);
+    const dt = (now-outdoor.lastPos.t)/1000;
+    if(dt>0 && d/dt < 34 /* ~122km/h sanity cap */){
+      outdoor.distanceM += d;
+      const instKmh = (d/dt)*3.6;
+      outdoor.speedSamples.push(instKmh);
+      if(outdoor.speedSamples.length>6) outdoor.speedSamples.shift();
+      outdoor.maxSpeedKmh = Math.max(outdoor.maxSpeedKmh, instKmh);
+    }
+    if(typeof altitude==='number' && outdoor.lastAlt!==null){
+      const dAlt = altitude - outdoor.lastAlt;
+      if(dAlt>1) outdoor.elevGainM += dAlt;
+    }
+  }
+  if(typeof altitude==='number') outdoor.lastAlt=altitude;
+  outdoor.lastPos={lat,lon,t:now};
+
+  if(now - outdoor.lastRecordTs > 5000){
+    outdoor.track.push({lat,lon,t:now});
+    outdoor.lastRecordTs=now;
+    drawOutdoorTrack();
+  }
+}
+function outdoorGeoError(err){
+  $('out-gps-pill').innerHTML = `<span class="dot"></span><span>GPS: ${err.code===1?'permiso denegado':'sin señal'}</span>`;
+  $('out-gps-pill').style.color='var(--danger)';
+}
+
+function drawOutdoorTrack(){
+  const cv=$('out-canvas'); const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||320; cv.width=w*devicePixelRatio; cv.height=220*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,220);
+  const pts=outdoor.track;
+  if(pts.length<2){
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
+    ctx.font='13px Manrope'; ctx.textAlign='center';
+    ctx.fillText('El recorrido aparecerá aquí en cuanto empieces a moverte',w/2,112);
+    return;
+  }
+  const lats=pts.map(p=>p.lat), lons=pts.map(p=>p.lon);
+  const minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
+  const pad=24;
+  const latSpan=Math.max(maxLat-minLat,0.0004), lonSpan=Math.max(maxLon-minLon,0.0004);
+  const sx=(w-2*pad)/lonSpan, sy=(220-2*pad)/latSpan;
+  const s=Math.min(sx,sy);
+  const cx=w/2, cy=110;
+  const midLat=(minLat+maxLat)/2, midLon=(minLon+maxLon)/2;
+  ctx.beginPath();
+  pts.forEach((p,i)=>{
+    const x=cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180);
+    const y=cy-(p.lat-midLat)*s;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent');
+  ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.stroke();
+  // start/end markers
+  function marker(p,color){
+    const x=cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180);
+    const y=cy-(p.lat-midLat)*s;
+    ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fillStyle=color; ctx.fill();
+  }
+  marker(pts[0],getComputedStyle(document.body).getPropertyValue('--success'));
+  marker(pts[pts.length-1],getComputedStyle(document.body).getPropertyValue('--accent'));
+}
+
+function outdoorTick(){
+  if(!outdoor.running || outdoor.paused) return;
+  $('out-time').textContent = fmtHMS(outElapsed());
+  $('out-dist').innerHTML = (outdoor.distanceM/1000).toFixed(2)+'<span class="stat-unit">km</span>';
+  const inst = outdoor.speedSamples.length ? outdoor.speedSamples.reduce((a,b)=>a+b,0)/outdoor.speedSamples.length : 0;
+  $('out-speed').innerHTML = inst.toFixed(1)+'<span class="stat-unit">km/h</span>';
+  const elapsedH = outElapsed()/3600;
+  const avg = elapsedH>0 ? (outdoor.distanceM/1000)/elapsedH : 0;
+  $('out-avgspeed').innerHTML = avg.toFixed(1)+'<span class="stat-unit">km/h</span>';
+  $('out-elev').innerHTML = Math.round(outdoor.elevGainM)+'<span class="stat-unit">m</span>';
+}
+
+async function requestWakeLock(){
+  try{ if('wakeLock' in navigator){ outdoor.wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+}
+function releaseWakeLock(){ try{ outdoor.wakeLock && outdoor.wakeLock.release(); }catch(e){} outdoor.wakeLock=null; }
+
+function renderOutControls(){
+  const c=$('out-controls');
+  if(!outdoor.running){
+    c.innerHTML = `<button class="btn btn-primary" id="out-btn-start">Empezar</button>`;
+    $('out-btn-start').addEventListener('click',startOutdoor);
+  } else if(outdoor.paused){
+    c.innerHTML = `<button class="btn" id="out-btn-resume">Reanudar</button><button class="btn btn-danger" id="out-btn-stop">Finalizar</button>`;
+    $('out-btn-resume').addEventListener('click',resumeOutdoor);
+    $('out-btn-stop').addEventListener('click',stopOutdoor);
+  } else {
+    c.innerHTML = `<button class="btn" id="out-btn-pause">Pausar</button><button class="btn btn-danger" id="out-btn-stop">Finalizar</button>`;
+    $('out-btn-pause').addEventListener('click',pauseOutdoor);
+    $('out-btn-stop').addEventListener('click',stopOutdoor);
+  }
+}
+
+function startOutdoor(){
+  if(!navigator.geolocation){ toast('Este navegador no soporta GPS'); return; }
+  Object.assign(outdoor,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,distanceM:0,elevGainM:0,lastAlt:null,lastPos:null,track:[],lastRecordTs:0,maxSpeedKmh:0,speedSamples:[]});
+  outdoor.watchId = navigator.geolocation.watchPosition(outdoorGeoHandler,outdoorGeoError,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+  outdoor.timerId = setInterval(outdoorTick,1000);
+  requestWakeLock();
+  $('out-permhelp').style.display='none';
+  drawOutdoorTrack();
+  renderOutControls();
+}
+function pauseOutdoor(){ outdoor.paused=true; outdoor.pauseStart=Date.now(); releaseWakeLock(); renderOutControls(); }
+function resumeOutdoor(){ outdoor.paused=false; outdoor.pausedAccum += Date.now()-outdoor.pauseStart; requestWakeLock(); renderOutControls(); }
+async function stopOutdoor(){
+  const durationSec = outElapsed();
+  if(outdoor.watchId!==null) navigator.geolocation.clearWatch(outdoor.watchId);
+  clearInterval(outdoor.timerId);
+  releaseWakeLock();
+  const elapsedH = durationSec/3600;
+  const avgSpeedKmh = elapsedH>0 ? (outdoor.distanceM/1000)/elapsedH : 0;
+  const met = avgSpeedKmh<16?4:avgSpeedKmh<19?6:avgSpeedKmh<22?8:avgSpeedKmh<25?10:avgSpeedKmh<30?12:15;
+  const calories = Math.round(met*state.settings.weightKg*elapsedH);
+  const session={
+    type:'outdoor', startedAt:new Date(outdoor.startTs).toISOString(), durationSec:Math.round(durationSec),
+    distanceKm: outdoor.distanceM/1000, avgSpeedKmh, maxSpeedKmh: outdoor.maxSpeedKmh,
+    elevGainM: Math.round(outdoor.elevGainM), calories, track: outdoor.track.slice(-400),
+  };
+  if(durationSec<20){ toast('Sesión demasiado corta, no se ha guardado'); }
+  else { await saveSession(session); toast('Salida guardada · '+(outdoor.distanceM/1000).toFixed(1)+' km'); }
+  outdoor.running=false; outdoor.paused=false;
+  $('out-time').textContent='00:00:00'; $('out-dist').innerHTML='0.00<span class="stat-unit">km</span>';
+  $('out-speed').innerHTML='0.0<span class="stat-unit">km/h</span>'; $('out-avgspeed').innerHTML='0.0<span class="stat-unit">km/h</span>';
+  $('out-elev').innerHTML='0<span class="stat-unit">m</span>';
+  outdoor.track=[]; drawOutdoorTrack();
+  renderOutControls();
+}
+renderOutControls();
+window.addEventListener('resize', ()=>{ if($('screen-outdoor').classList.contains('active')) drawOutdoorTrack(); });
+
+/* ================================================================
+   BLUETOOTH MODULE (standard GATT profiles - brand independent)
+   ================================================================ */
+const UUID = {
+  hrService:'0000180d-0000-1000-8000-00805f9b34fb', hrMeasurement:'00002a37-0000-1000-8000-00805f9b34fb',
+  cscService:'00001816-0000-1000-8000-00805f9b34fb', cscMeasurement:'00002a5b-0000-1000-8000-00805f9b34fb',
+  powerService:'00001818-0000-1000-8000-00805f9b34fb', powerMeasurement:'00002a63-0000-1000-8000-00805f9b34fb',
+  ftmsService:'00001826-0000-1000-8000-00805f9b34fb', indoorBikeData:'00002ad2-0000-1000-8000-00805f9b34fb',
+  ftmsControlPoint:'00002ad9-0000-1000-8000-00805f9b34fb', ftmsStatus:'00002ada-0000-1000-8000-00805f9b34fb',
+};
+
+const sensors = {
+  trainer:{device:null, power:null, cadence:null, speed:null, connected:false, hasFtmsControl:false, controlChar:null},
+  hr:{device:null, bpm:null, connected:false},
+};
+
+const live = { power:null, cadence:null, speed:null, hr:null, powerHistory:[], cadenceHistory:[], hrHistory:[] };
+
+function bleSupported(){ return !!navigator.bluetooth; }
+
+async function connectTrainer(){
+  if(!bleSupported()){ toast('Tu navegador no soporta Bluetooth. Usa Chrome en Android.'); return; }
+  try{
+    const device = await navigator.bluetooth.requestDevice({
+      filters:[{services:[UUID.ftmsService]},{services:[UUID.powerService]},{services:[UUID.cscService]}],
+      optionalServices:[UUID.ftmsService,UUID.powerService,UUID.cscService],
+    });
+    logDiag('Bicicleta seleccionada: '+device.name);
+    sensors.trainer.device=device;
+    device.addEventListener('gattserverdisconnected', ()=>{
+      sensors.trainer.connected=false; sensors.trainer.hasFtmsControl=false;
+      updateSensorUI(); logDiag('Bicicleta desconectada');
+    });
+    const server = await device.gatt.connect();
+    sensors.trainer.connected=true;
+
+    // FTMS - indoor bike data (power/cadence/speed combined) + control point (ERG)
+    try{
+      const svc = await server.getPrimaryService(UUID.ftmsService);
+      try{
+        const bike = await svc.getCharacteristic(UUID.indoorBikeData);
+        await bike.startNotifications();
+        bike.addEventListener('characteristicvaluechanged', e=>parseIndoorBikeData(e.target.value));
+        logDiag('FTMS: datos de bici indoor activados');
+      }catch(e){logDiag('FTMS: sin característica de datos de bici');}
+      try{
+        const cp = await svc.getCharacteristic(UUID.ftmsControlPoint);
+        await cp.startNotifications();
+        cp.addEventListener('characteristicvaluechanged', e=>logDiag('FTMS control resp: '+dumpBytes(e.target.value)));
+        sensors.trainer.controlChar=cp; sensors.trainer.hasFtmsControl=true;
+        logDiag('FTMS: control ERG disponible');
+      }catch(e){logDiag('FTMS: sin punto de control (sin ERG automático)');}
+    }catch(e){ logDiag('Sin servicio FTMS en este dispositivo'); }
+
+    // Cycling Power (fallback / extra source)
+    try{
+      const svc = await server.getPrimaryService(UUID.powerService);
+      const ch = await svc.getCharacteristic(UUID.powerMeasurement);
+      await ch.startNotifications();
+      ch.addEventListener('characteristicvaluechanged', e=>parsePowerMeasurement(e.target.value));
+      logDiag('Potenciómetro: activado');
+    }catch(e){}
+
+    // CSC (fallback cadence/speed)
+    try{
+      const svc = await server.getPrimaryService(UUID.cscService);
+      const ch = await svc.getCharacteristic(UUID.cscMeasurement);
+      await ch.startNotifications();
+      let cscState={};
+      ch.addEventListener('characteristicvaluechanged', e=>parseCSC(e.target.value,cscState));
+      logDiag('Sensor cadencia/velocidad: activado');
+    }catch(e){}
+
+    updateSensorUI();
+    toast('Bicicleta/sensor conectado');
+  }catch(e){
+    if(e.name!=='NotFoundError'){ toast('No se pudo conectar: '+e.message); logDiag('Error conexión bicicleta: '+e.message); }
+  }
+}
+
+async function connectHR(){
+  if(!bleSupported()){ toast('Tu navegador no soporta Bluetooth. Usa Chrome en Android.'); return; }
+  try{
+    const device = await navigator.bluetooth.requestDevice({filters:[{services:[UUID.hrService]}]});
+    logDiag('Pulsómetro seleccionado: '+device.name);
+    sensors.hr.device=device;
+    device.addEventListener('gattserverdisconnected', ()=>{ sensors.hr.connected=false; updateSensorUI(); logDiag('Pulsómetro desconectado'); });
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(UUID.hrService);
+    const ch = await svc.getCharacteristic(UUID.hrMeasurement);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged', e=>parseHR(e.target.value));
+    sensors.hr.connected=true;
+    updateSensorUI();
+    toast('Pulsómetro conectado');
+  }catch(e){
+    if(e.name!=='NotFoundError'){ toast('No se pudo conectar: '+e.message); logDiag('Error conexión pulsómetro: '+e.message); }
+  }
+}
+
+function dumpBytes(dv){ let s=''; for(let i=0;i<dv.byteLength;i++) s+=dv.getUint8(i).toString(16).padStart(2,'0')+' '; return s.trim(); }
+
+function parseHR(dv){
+  const flags=dv.getUint8(0);
+  const is16=(flags & 0x1)!==0;
+  const bpm = is16 ? dv.getUint16(1,true) : dv.getUint8(1);
+  live.hr=bpm; sensors.hr.bpm=bpm;
+  pushHist(live.hrHistory,bpm);
+  updateLiveUI();
+}
+
+function parsePowerMeasurement(dv){
+  try{
+    const flags=dv.getUint16(0,true);
+    let off=2;
+    const power=dv.getInt16(off,true); off+=2;
+    live.power=power; pushHist(live.powerHistory,power);
+    if(flags & 0x1){ off+=1; } // pedal power balance
+    if(flags & 0x4){ off+=2; } // accumulated torque
+    if(flags & 0x10){ // wheel revolution data
+      off+=6;
+    }
+    if(flags & 0x20){ // crank revolution data -> cadence
+      if(off+4<=dv.byteLength){
+        const crankRevs=dv.getUint16(off,true); const crankTime=dv.getUint16(off+2,true);
+        cadenceFromCrank(crankRevs,crankTime,'power');
+      }
+    }
+    updateLiveUI();
+  }catch(e){}
+}
+
+let crankState={power:null,ftms:null};
+function cadenceFromCrank(revs,time,src){
+  const prev=crankState[src];
+  crankState[src]={revs,time};
+  if(prev){
+    let dt=time-prev.time; if(dt<0) dt+=65536; dt/=1024;
+    let dr=revs-prev.revs; if(dr<0) dr+=65536;
+    if(dt>0.1){ const cad=Math.round((dr/dt)*60); if(cad<220){ live.cadence=cad; pushHist(live.cadenceHistory,cad); } }
+  }
+}
+let wheelState={csc:null};
+function speedFromWheel(revs,time,src){
+  const prev=wheelState[src];
+  wheelState[src]={revs,time};
+  if(prev){
+    let dt=time-prev.time; if(dt<0) dt+=65536; dt/=1024;
+    let dr=revs-prev.revs; if(dr<0) dr+=4294967296;
+    if(dt>0.1){
+      const distM=dr*(state.settings.wheelCircMm/1000);
+      const kmh = (distM/dt)*3.6;
+      if(kmh<120) live.speed=kmh;
+    }
+  }
+}
+
+function parseCSC(dv,localState){
+  try{
+    const flags=dv.getUint8(0); let off=1;
+    if(flags & 0x1){ // wheel
+      const revs=dv.getUint32(off,true); const time=dv.getUint16(off+4,true); off+=6;
+      speedFromWheel(revs,time,'csc');
+    }
+    if(flags & 0x2){ // crank
+      const revs=dv.getUint16(off,true); const time=dv.getUint16(off+2,true); off+=4;
+      cadenceFromCrank(revs,time,'csc');
+    }
+    updateLiveUI();
+  }catch(e){}
+}
+
+function parseIndoorBikeData(dv){
+  try{
+    const flags=dv.getUint16(0,true); let off=2;
+    const moreDataAbsentFlag = flags & 0x1; // if 0, instantaneous speed present
+    if(!moreDataAbsentFlag){ const v=dv.getUint16(off,true); off+=2; live.speed=v/100; }
+    if(flags & 0x2){ off+=2; } // avg speed - skip
+    if(flags & 0x4){ const v=dv.getUint16(off,true); off+=2; live.cadence=Math.round(v/2); }
+    if(flags & 0x8){ off+=2; } // avg cadence - skip
+    if(flags & 0x10){ off+=3; } // total distance (uint24)
+    if(flags & 0x20){ off+=2; } // resistance level
+    if(flags & 0x40){ if(off+2<=dv.byteLength){ live.power=dv.getInt16(off,true); off+=2; } }
+    if(flags & 0x80){ off+=2; } // avg power - skip
+    if(flags & 0x100){ off+=5; } // expended energy (3 fields)
+    if(flags & 0x200){ if(off+1<=dv.byteLength){ live.hr=dv.getUint8(off); off+=1; } }
+    pushHist(live.powerHistory,live.power); pushHist(live.cadenceHistory,live.cadence);
+    if(live.hr!=null) pushHist(live.hrHistory,live.hr);
+    updateLiveUI();
+  }catch(e){}
+}
+function pushHist(arr,val){ if(val==null||isNaN(val))return; arr.push(val); if(arr.length>7200) arr.shift(); }
+
+function updateSensorUI(){
+  const rowT=$('row-trainer'), rowH=$('row-hr');
+  rowT.classList.toggle('linked',sensors.trainer.connected);
+  $('trainer-sub').textContent = sensors.trainer.connected ? (sensors.trainer.device?.name||'Conectado')+(sensors.trainer.hasFtmsControl?' · ERG disponible':'') : 'No conectado';
+  $('btn-connect-trainer').textContent = sensors.trainer.connected ? 'Desconectar' : 'Conectar';
+  rowH.classList.toggle('linked',sensors.hr.connected);
+  $('hr-sub').textContent = sensors.hr.connected ? (sensors.hr.device?.name||'Conectado') : 'No conectado';
+  $('btn-connect-hr').textContent = sensors.hr.connected ? 'Desconectar' : 'Conectar';
+  $('in-erg-row').style.display = sensors.trainer.hasFtmsControl ? 'flex' : 'none';
+}
+$('btn-connect-trainer').addEventListener('click',()=>{
+  if(sensors.trainer.connected && sensors.trainer.device){ sensors.trainer.device.gatt.disconnect(); sensors.trainer.connected=false; updateSensorUI(); }
+  else connectTrainer();
+});
+$('btn-connect-hr').addEventListener('click',()=>{
+  if(sensors.hr.connected && sensors.hr.device){ sensors.hr.device.gatt.disconnect(); sensors.hr.connected=false; updateSensorUI(); }
+  else connectHR();
+});
+updateSensorUI();
+
+function updateLiveUI(){
+  $('in-power').innerHTML = (live.power!=null?Math.round(live.power):'–')+'<span class="stat-unit">W</span>';
+  $('in-cad').innerHTML = (live.cadence!=null?Math.round(live.cadence):'–')+'<span class="stat-unit">rpm</span>';
+  $('in-hr').innerHTML = (live.hr!=null?Math.round(live.hr):'–')+'<span class="stat-unit">ppm</span>';
+}
+
+/* ================================================================
+   FTMS CONTROL (ERG mode) - best effort, brand independent
+   ================================================================ */
+async function ftmsWrite(bytes){
+  const ch=sensors.trainer.controlChar; if(!ch) return false;
+  const buf=new Uint8Array(bytes);
+  try{ await ch.writeValueWithResponse(buf); return true; }
+  catch(e){ try{ await ch.writeValueWithoutResponse(buf); return true; }catch(e2){ logDiag('Fallo al escribir control FTMS: '+e2.message); return false; } }
+}
+async function ftmsRequestControl(){ return ftmsWrite([0x00]); }
+async function ftmsStart(){ return ftmsWrite([0x07]); }
+async function ftmsStop(){ return ftmsWrite([0x08]); }
+async function ftmsSetTargetPower(watts){
+  const w=Math.round(clamp(watts,0,2000));
+  return ftmsWrite([0x05, w & 0xff, (w>>8)&0xff]);
+}
+let ergActive=false;
+async function enableErg(){
+  if(!sensors.trainer.hasFtmsControl){ toast('Esta bicicleta no soporta control ERG automático'); return false; }
+  const ok1=await ftmsRequestControl();
+  const ok2=await ftmsStart();
+  ergActive = ok1 && ok2;
+  logDiag('ERG activado: '+ergActive);
+  if(!ergActive) toast('La bicicleta no respondió al control ERG. Puedes seguir el entreno de forma manual.');
+  return ergActive;
+}
+async function disableErg(){ if(ergActive){ await ftmsStop(); } ergActive=false; }
+
+/* ================================================================
+   INDOOR RIDE MODULE (workouts + timer)
+   ================================================================ */
+const BUILTIN_WORKOUTS = [
+  {id:'b-recovery', builtin:true, name:'Recuperación activa', tag:'Recuperación', intervals:[
+    {dur:300,pct:50,label:'Calentamiento'},{dur:600,pct:55,label:'Suave'},{dur:300,pct:50,label:'Enfriamiento'}]},
+  {id:'b-sweetspot', builtin:true, name:'Sweet Spot 2×15', tag:'Sweet Spot', intervals:[
+    {dur:600,pct:60,label:'Calentamiento'},
+    {dur:900,pct:90,label:'Sweet Spot 1'},{dur:300,pct:55,label:'Recuperación'},
+    {dur:900,pct:90,label:'Sweet Spot 2'},{dur:300,pct:50,label:'Enfriamiento'}]},
+  {id:'b-vo2max', builtin:true, name:'Series VO2max 5×3', tag:'VO2max', intervals:[
+    {dur:600,pct:60,label:'Calentamiento'},
+    {dur:180,pct:120,cadence:95,label:'Serie 1'},{dur:180,pct:50,label:'Recuperación'},
+    {dur:180,pct:120,cadence:95,label:'Serie 2'},{dur:180,pct:50,label:'Recuperación'},
+    {dur:180,pct:120,cadence:95,label:'Serie 3'},{dur:180,pct:50,label:'Recuperación'},
+    {dur:180,pct:120,cadence:95,label:'Serie 4'},{dur:180,pct:50,label:'Recuperación'},
+    {dur:180,pct:120,cadence:95,label:'Serie 5'},{dur:480,pct:50,label:'Enfriamiento'}]},
+  {id:'b-threshold', builtin:true, name:'Umbral 3×10', tag:'Umbral', intervals:[
+    {dur:600,pct:60,label:'Calentamiento'},
+    {dur:600,pct:100,label:'Umbral 1'},{dur:300,pct:55,label:'Recuperación'},
+    {dur:600,pct:100,label:'Umbral 2'},{dur:300,pct:55,label:'Recuperación'},
+    {dur:600,pct:100,label:'Umbral 3'},{dur:300,pct:50,label:'Enfriamiento'}]},
+  {id:'b-ftptest', builtin:true, name:'Test de FTP (20 min)', tag:'Test', intervals:[
+    {dur:600,pct:55,label:'Calentamiento'},{dur:180,pct:105,label:'Activación'},{dur:300,pct:50,label:'Recuperación'},
+    {dur:1200,pct:100,label:'Test 20 min · a tope'},{dur:300,pct:50,label:'Enfriamiento'}]},
+];
+
+const indoorRide={ running:false, paused:false, startTs:0, pausedAccum:0, pauseStart:0, timerId:null,
+  workout:null, ivIndex:0, ivStartElapsed:0, samples:[], lastSampleTs:0 };
+
+function ivElapsedTotal(){ return indoorRide.workout ? indoorRide.workout.intervals.reduce((a,iv)=>a+iv.dur,0) : 0; }
+function inElapsed(){
+  if(!indoorRide.running) return 0;
+  const now = indoorRide.paused ? indoorRide.pauseStart : Date.now();
+  return (now - indoorRide.startTs - indoorRide.pausedAccum)/1000;
+}
+
+function drawWorkoutChart(workout, progressSec){
+  const cv=$('in-workout-canvas'); if(!cv) return;
+  const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||300, h=90;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,h);
+  const total = workout.intervals.reduce((a,iv)=>a+iv.dur,0);
+  const maxPct = Math.max(120, ...workout.intervals.map(iv=>iv.pct));
+  const zoneColor = pct => { const z=powerZone(pct); return getComputedStyle(document.body).getPropertyValue('--zone'+z); };
+  let x=0;
+  workout.intervals.forEach(iv=>{
+    const bw = (iv.dur/total)*w;
+    const bh = (iv.pct/maxPct)*(h-6);
+    ctx.fillStyle = zoneColor(iv.pct);
+    ctx.fillRect(x, h-bh, Math.max(bw-1,1), bh);
+    x+=bw;
+  });
+  if(progressSec!=null){
+    const px = (progressSec/total)*w;
+    ctx.fillStyle='rgba(0,0,0,.28)';
+    ctx.fillRect(0,0,px,h);
+    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--text');
+    ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,h); ctx.stroke();
+  }
+}
+
+function renderWorkoutPickerName(){
+  const w=indoorRide.workout;
+  $('in-workout-name').textContent = w ? w.name : 'Modo libre (sin plan)';
+  $('in-workout-chart-wrap').style.display = w ? 'block' : 'none';
+  if(w){
+    const mins=Math.round(w.intervals.reduce((a,iv)=>a+iv.dur,0)/60);
+    $('in-workout-sub').textContent = mins+' min · '+w.intervals.length+' bloques';
+    drawWorkoutChart(w,0);
+    const first=w.intervals[0];
+    $('in-interval-label').textContent = first.label+' · '+Math.round(state.settings.ftp*first.pct/100)+' W'+(first.cadence?(' · '+first.cadence+' rpm'):'');
+    $('in-interval-time').textContent = fmtMS(first.dur)+' restante';
+  } else {
+    $('in-workout-sub').textContent = 'Elige un entreno estructurado o pedalea libre';
+  }
+}
+$('btn-pick-workout').addEventListener('click',()=>{ renderPicker(); openPanel('picker'); });
+function renderPicker(){
+  $('picker-list').innerHTML = [...BUILTIN_WORKOUTS,...state.workouts].map(w=>{
+    const mins=Math.round(w.intervals.reduce((a,iv)=>a+iv.dur,0)/60);
+    return `<div class="card workout-card" data-wid="${w.id}"><div class="row"><div><span class="tag">${w.tag||'Personalizado'}</span><div style="font-weight:700;margin-top:6px;">${w.name}</div><div class="small muted">${mins} min · ${w.intervals.length} bloques</div></div><svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" width="16" height="16"><path d="M9 6l6 6-6 6"/></svg></div></div>`;
+  }).join('');
+  qsa('[data-wid]').forEach(c=>c.addEventListener('click',()=>{
+    const w=[...BUILTIN_WORKOUTS,...state.workouts].find(x=>x.id===c.dataset.wid);
+    indoorRide.workout=w; renderWorkoutPickerName(); closePanel('picker');
+  }));
+}
+$('pick-free').addEventListener('click',()=>{ indoorRide.workout=null; renderWorkoutPickerName(); closePanel('picker'); });
+
+$('in-erg-toggle').addEventListener('change', async (e)=>{
+  if(e.target.checked){ const ok=await enableErg(); e.target.checked=ok; if(ok) applyCurrentTarget(); }
+  else{ await disableErg(); }
+});
+
+async function applyCurrentTarget(){
+  if(!ergActive) return;
+  const iv=indoorRide.workout.intervals[indoorRide.ivIndex]; if(!iv) return;
+  await ftmsSetTargetPower(state.settings.ftp*iv.pct/100);
+}
+
+function indoorTick(){
+  if(!indoorRide.running || indoorRide.paused) return;
+  const elapsed=inElapsed();
+  $('in-time').textContent=fmtHMS(elapsed);
+  updateLiveUI();
+
+  if(Date.now()-indoorRide.lastSampleTs>4000){
+    indoorRide.samples.push({t:Math.round(elapsed),power:live.power,cadence:live.cadence,hr:live.hr,speed:live.speed});
+    if(indoorRide.samples.length>2000) indoorRide.samples.shift();
+    indoorRide.lastSampleTs=Date.now();
+  }
+  const totalKJ = indoorRide.samples.reduce((a,s,i,arr)=>{
+    if(i===0) return 0;
+    const dt=(arr[i].t-arr[i-1].t);
+    return a + ((s.power||0)*dt)/1000;
+  },0);
+  $('in-kcal').textContent = Math.round(totalKJ);
+
+  if(indoorRide.workout){
+    const iv=indoorRide.workout.intervals[indoorRide.ivIndex];
+    if(iv){
+      const ivElapsed = elapsed - indoorRide.ivStartElapsed;
+      $('in-interval-label').textContent = iv.label+' · '+Math.round(state.settings.ftp*iv.pct/100)+' W'+(iv.cadence?(' · '+iv.cadence+' rpm'):'');
+      $('in-interval-time').textContent = fmtMS(iv.dur-ivElapsed)+' restante';
+      drawWorkoutChart(indoorRide.workout, elapsed);
+      if(ivElapsed>=iv.dur){
+        indoorRide.ivIndex++;
+        indoorRide.ivStartElapsed=elapsed;
+        if(indoorRide.ivIndex>=indoorRide.workout.intervals.length){
+          toast('¡Entreno completado!');
+          stopIndoor();
+          return;
+        }
+        applyCurrentTarget();
+        toast('Siguiente: '+indoorRide.workout.intervals[indoorRide.ivIndex].label);
+      }
+    }
+  }
+}
+
+function renderInControls(){
+  const c=$('in-controls');
+  if(!indoorRide.running){
+    c.innerHTML=`<button class="btn btn-primary" id="in-btn-start">Empezar</button>`;
+    $('in-btn-start').addEventListener('click',startIndoor);
+  } else if(indoorRide.paused){
+    c.innerHTML=`<button class="btn" id="in-btn-resume">Reanudar</button><button class="btn btn-danger" id="in-btn-stop">Finalizar</button>`;
+    $('in-btn-resume').addEventListener('click',resumeIndoor);
+    $('in-btn-stop').addEventListener('click',stopIndoor);
+  } else {
+    c.innerHTML=`<button class="btn" id="in-btn-pause">Pausar</button><button class="btn btn-danger" id="in-btn-stop">Finalizar</button>`;
+    $('in-btn-pause').addEventListener('click',pauseIndoor);
+    $('in-btn-stop').addEventListener('click',stopIndoor);
+  }
+}
+async function startIndoor(){
+  Object.assign(indoorRide,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,ivIndex:0,ivStartElapsed:0,samples:[],lastSampleTs:0});
+  live.powerHistory=[];live.cadenceHistory=[];live.hrHistory=[];
+  indoorRide.timerId=setInterval(indoorTick,1000);
+  requestWakeLock();
+  $('btn-pick-workout').disabled = true;
+  if(indoorRide.workout){ applyCurrentTarget(); }
+  renderInControls();
+}
+function pauseIndoor(){ indoorRide.paused=true; indoorRide.pauseStart=Date.now(); releaseWakeLock(); renderInControls(); }
+function resumeIndoor(){ indoorRide.paused=false; indoorRide.pausedAccum+=Date.now()-indoorRide.pauseStart; requestWakeLock(); renderInControls(); }
+async function stopIndoor(){
+  const durationSec=inElapsed();
+  clearInterval(indoorRide.timerId);
+  releaseWakeLock();
+  await disableErg();
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const avgPower=avg(live.powerHistory), avgCadence=avg(live.cadenceHistory), avgHr=avg(live.hrHistory);
+  const totalKJ = indoorRide.samples.reduce((a,s,i,arr)=>{ if(i===0) return 0; const dt=(arr[i].t-arr[i-1].t); return a+((s.power||0)*dt)/1000; },0);
+  const session={ type:'indoor', startedAt:new Date(indoorRide.startTs).toISOString(), durationSec:Math.round(durationSec),
+    avgPower, avgCadence, avgHr, calories:Math.round(totalKJ), workoutName: indoorRide.workout?indoorRide.workout.name:null,
+    samples: indoorRide.samples };
+  if(durationSec<20){ toast('Sesión demasiado corta, no se ha guardado'); }
+  else { await saveSession(session); toast('Sesión indoor guardada'); }
+  indoorRide.running=false; indoorRide.paused=false; indoorRide.workout=null;
+  $('in-time').textContent='00:00:00'; $('in-kcal').textContent='0';
+  live.power=null;live.cadence=null;live.hr=null; updateLiveUI();
+  $('btn-pick-workout').disabled = false;
+  renderWorkoutPickerName();
+  renderInControls();
+}
+renderInControls(); renderWorkoutPickerName(); renderInDiag();
+window.addEventListener('resize', ()=>{ if(indoorRide.workout && $('screen-indoor').classList.contains('active')) drawWorkoutChart(indoorRide.workout, indoorRide.running?inElapsed():0); });
+
+/* ================================================================
+   WORKOUTS LIBRARY (custom builder)
+   ================================================================ */
+function workoutRowHTML(w, custom){
+  const mins=Math.round(w.intervals.reduce((a,iv)=>a+iv.dur,0)/60);
+  return `<div class="card">
+    <div class="row">
+      <div><span class="tag">${w.tag||'Personalizado'}</span><div style="font-weight:700;margin-top:6px;">${w.name}</div>
+      <div class="small muted">${mins} min · ${w.intervals.length} bloques</div></div>
+      ${custom?`<button class="icon-btn" data-del="${w.id}" style="width:32px;height:32px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" width="15" height="15"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>`:''}
+    </div>
+  </div>`;
+}
+function renderWorkoutsScreen(){
+  $('workouts-builtin').innerHTML = BUILTIN_WORKOUTS.map(w=>workoutRowHTML(w,false)).join('');
+  if(state.workouts.length){
+    $('workouts-custom').innerHTML = state.workouts.map(w=>workoutRowHTML(w,true)).join('');
+    qsa('[data-del]',$('workouts-custom')).forEach(b=>b.addEventListener('click',(ev)=>{ ev.stopPropagation(); deleteWorkout(b.dataset.del); }));
+  } else {
+    $('workouts-custom').innerHTML = `<div class="empty"><div class="small">Aún no has creado ningún entreno propio.</div></div>`;
+  }
+}
+
+let editorBlocks=[];
+function renderEditorBlocks(){
+  $('ed-ivlist').innerHTML = editorBlocks.map((b,i)=>{
+    const z=powerZone(b.pct);
+    return `<div class="ivchip"><div class="bar" style="background:var(--zone${z})"></div>
+      <div class="meta">
+        <input type="text" data-i="${i}" data-f="label" value="${b.label}" placeholder="Nombre del bloque" style="border:none;background:transparent;padding:0;font-weight:700;font-size:13px;margin-bottom:4px;">
+        <div style="display:flex;gap:6px;">
+          <input type="number" data-i="${i}" data-f="dur" value="${Math.round(b.dur/60)}" style="padding:5px 7px;font-size:12px;" title="minutos"> min
+          <input type="number" data-i="${i}" data-f="pct" value="${b.pct}" style="padding:5px 7px;font-size:12px;" title="%FTP"> % FTP
+        </div>
+      </div>
+      <button data-rm="${i}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+    </div>`;
+  }).join('') || '<div class="small muted">Añade al menos un bloque.</div>';
+  qsa('[data-rm]').forEach(b=>b.addEventListener('click',()=>{ editorBlocks.splice(Number(b.dataset.rm),1); renderEditorBlocks(); }));
+  qsa('#ed-ivlist input').forEach(inp=>inp.addEventListener('input',()=>{
+    const i=Number(inp.dataset.i), f=inp.dataset.f;
+    if(f==='dur') editorBlocks[i].dur=clamp(Number(inp.value)||1,1,180)*60;
+    else if(f==='pct') editorBlocks[i].pct=clamp(Number(inp.value)||50,20,200);
+    else editorBlocks[i].label=inp.value;
+    if(f!=='label') renderEditorBlocks();
+  }));
+}
+$('btn-new-workout').addEventListener('click',()=>{
+  editorBlocks=[{dur:300,pct:60,label:'Calentamiento'},{dur:600,pct:90,label:'Bloque principal'},{dur:300,pct:50,label:'Enfriamiento'}];
+  $('ed-name').value='';
+  renderEditorBlocks();
+  openPanel('editor');
+});
+$('ed-add-block').addEventListener('click',()=>{ editorBlocks.push({dur:300,pct:70,label:'Nuevo bloque'}); renderEditorBlocks(); });
+$('ed-save').addEventListener('click', async ()=>{
+  const name=$('ed-name').value.trim();
+  if(!name){ toast('Ponle un nombre a tu entreno'); return; }
+  if(!editorBlocks.length){ toast('Añade al menos un bloque'); return; }
+  const w={id:uid(), name, tag:'Personalizado', createdAt:new Date().toISOString(), intervals:editorBlocks.map(b=>({dur:b.dur,pct:b.pct,label:b.label}))};
+  await saveWorkout(w);
+  closePanel('editor');
+  toast('Entreno guardado');
+});
+
+/* ================================================================
+   HISTORY
+   ================================================================ */
+let histFilter='all';
+qsa('#hist-filter button').forEach(b=>b.addEventListener('click',()=>{
+  qsa('#hist-filter button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+  histFilter=b.dataset.filter; renderHistoryScreen();
+}));
+
+function drawWeeklyChart(){
+  const cv=$('hist-chart'); const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||320,h=130;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,h);
+  const weeks=[]; const now=new Date();
+  for(let i=7;i>=0;i--){
+    const start=new Date(now); start.setDate(now.getDate()-now.getDay()-7*i); start.setHours(0,0,0,0);
+    const end=new Date(start); end.setDate(start.getDate()+7);
+    const km=state.sessions.filter(s=>{const t=new Date(s.startedAt);return t>=start&&t<end;}).reduce((a,s)=>a+(s.distanceKm||0),0);
+    weeks.push(km);
+  }
+  const max=Math.max(1,...weeks);
+  const bw=(w-16)/weeks.length;
+  weeks.forEach((km,i)=>{
+    const bh=(km/max)*(h-28);
+    const x=8+i*bw;
+    ctx.fillStyle= i===weeks.length-1 ? getComputedStyle(document.body).getPropertyValue('--accent') : getComputedStyle(document.body).getPropertyValue('--surface-2');
+    ctx.fillRect(x+bw*0.18, h-20-bh, bw*0.64, bh);
+    if(km>0){
+      ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
+      ctx.font='10px Manrope'; ctx.textAlign='center';
+      ctx.fillText(km.toFixed(0), x+bw*0.5, h-20-bh-5);
+    }
+  });
+  ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
+  ctx.font='10px Manrope'; ctx.textAlign='center';
+  ctx.fillText('hace 8 sem.',8+bw*0.5,h-6);
+  ctx.fillText('esta semana',8+bw*7.5,h-6);
+}
+
+function renderHistoryScreen(){
+  drawWeeklyChart();
+  const list = state.sessions.filter(s=>histFilter==='all'||s.type===histFilter);
+  if(!list.length){
+    $('hist-list').innerHTML = `<div class="empty"><div class="empty-title">Nada por aquí</div><div class="small">Tus sesiones aparecerán en esta lista.</div></div>`;
+    return;
+  }
+  $('hist-list').innerHTML = list.map(sessionCardHTML).join('');
+  qsa('[data-session-id]',$('hist-list')).forEach(c=>c.addEventListener('click',()=>openSessionDetail(c.dataset.sessionId)));
+}
+
+function openSessionDetail(id){
+  const s=state.sessions.find(x=>x.id===id); if(!s) return;
+  $('detail-title').textContent = s.type==='outdoor'?'Salida exterior':(s.workoutName||'Indoor libre');
+  const rows=[];
+  rows.push(['Fecha',fmtDateLong(s.startedAt)]);
+  rows.push(['Duración',fmtHMS(s.durationSec)]);
+  if(s.type==='outdoor'){
+    rows.push(['Distancia',s.distanceKm.toFixed(2)+' km']);
+    rows.push(['Velocidad media',s.avgSpeedKmh.toFixed(1)+' km/h']);
+    rows.push(['Velocidad máxima',s.maxSpeedKmh.toFixed(1)+' km/h']);
+    rows.push(['Desnivel acumulado',Math.round(s.elevGainM)+' m']);
+  } else {
+    if(s.avgPower) rows.push(['Potencia media',Math.round(s.avgPower)+' W']);
+    if(s.avgCadence) rows.push(['Cadencia media',Math.round(s.avgCadence)+' rpm']);
+    if(s.avgHr) rows.push(['FC media',Math.round(s.avgHr)+' ppm']);
+  }
+  rows.push(['Calorías (est.)',(s.calories||0)+' kcal']);
+  let html = rows.map(r=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--border);"><span class="small muted">${r[0]}</span><span class="mono" style="font-weight:700;">${r[1]}</span></div>`).join('');
+  if(s.type==='outdoor' && s.track && s.track.length>1){
+    html += `<div class="section-title">Recorrido</div><canvas id="detail-canvas" height="180"></canvas>`;
+  } else if(s.samples && s.samples.length>1){
+    html += `<div class="section-title">Potencia durante la sesión</div><canvas id="detail-canvas" height="140"></canvas>`;
+  }
+  $('detail-body').innerHTML = html;
+  openPanel('detail');
+  requestAnimationFrame(()=>{
+    if(s.type==='outdoor' && s.track && s.track.length>1) drawStaticTrack(s.track);
+    else if(s.samples && s.samples.length>1) drawPowerChart(s.samples);
+  });
+}
+function drawStaticTrack(track){
+  const cv=$('detail-canvas'); if(!cv) return; const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||320,h=180;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const lats=track.map(p=>p.lat), lons=track.map(p=>p.lon);
+  const minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
+  const pad=20, latSpan=Math.max(maxLat-minLat,0.0004), lonSpan=Math.max(maxLon-minLon,0.0004);
+  const s=Math.min((w-2*pad)/lonSpan,(h-2*pad)/latSpan);
+  const midLat=(minLat+maxLat)/2, midLon=(minLon+maxLon)/2, cx=w/2, cy=h/2;
+  ctx.beginPath();
+  track.forEach((p,i)=>{ const x=cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180); const y=cy-(p.lat-midLat)*s; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent'); ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke();
+}
+function drawPowerChart(samples){
+  const cv=$('detail-canvas'); if(!cv) return; const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||320,h=140;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const pw=samples.map(s=>s.power||0); const max=Math.max(50,...pw);
+  ctx.beginPath();
+  samples.forEach((s,i)=>{ const x=(i/(samples.length-1))*w; const y=h-((s.power||0)/max)*(h-10); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--accent-soft'); ctx.fill();
+  ctx.beginPath();
+  samples.forEach((s,i)=>{ const x=(i/(samples.length-1))*w; const y=h-((s.power||0)/max)*(h-10); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent'); ctx.lineWidth=2; ctx.stroke();
+}
+
+$('btn-export-csv').addEventListener('click', async ()=>{
+  if(!state.sessions.length){ toast('No hay sesiones para exportar'); return; }
+  const header='fecha,tipo,duracion_s,distancia_km,vel_media_kmh,potencia_media_w,cadencia_media_rpm,fc_media_ppm,calorias,entreno\n';
+  const rows=state.sessions.map(s=>[
+    s.startedAt, s.type, s.durationSec||'', s.distanceKm?s.distanceKm.toFixed(2):'', s.avgSpeedKmh?s.avgSpeedKmh.toFixed(1):'',
+    s.avgPower?Math.round(s.avgPower):'', s.avgCadence?Math.round(s.avgCadence):'', s.avgHr?Math.round(s.avgHr):'', s.calories||'', s.workoutName||''
+  ].join(',')).join('\n');
+  const csv=header+rows;
+  if(state.downloads){
+    try{ await state.downloads.save({filename:'rodado_historial.csv', data:csv}); toast('CSV guardado'); return; }catch(e){}
+  }
+  // fallback: open as data URI in new tab
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  window.open(url,'_blank');
+  toast('Descarga iniciada');
+});
+
+/* ================================================================
+   MUSIC (local files only - cannot control external apps from web)
+   ================================================================ */
+$('btn-add-music').addEventListener('click',()=>$('music-file-input').click());
+$('music-file-input').addEventListener('change',(e)=>{
+  const files=Array.from(e.target.files||[]);
+  files.forEach(f=>state.music.tracks.push({name:f.name.replace(/\.[^.]+$/,''),url:URL.createObjectURL(f)}));
+  renderMusicList(); renderMiniPlayer();
+  toast(files.length+' canción(es) añadidas');
+});
+function renderMusicList(){
+  const el=$('music-list');
+  if(!state.music.tracks.length){ el.innerHTML='<div class="small muted">Sin canciones cargadas.</div>'; return; }
+  el.innerHTML = state.music.tracks.map((t,i)=>`<div class="row" style="padding:6px 0;"><span class="small">${t.name}</span>${i===state.music.idx?'<span class="tag">Sonando</span>':''}</div>`).join('');
+}
+function playTrack(i){
+  if(i<0||i>=state.music.tracks.length) return;
+  state.music.idx=i;
+  const a=state.music.el;
+  a.src=state.music.tracks[i].url; a.play().catch(()=>{});
+  if('mediaSession' in navigator){
+    navigator.mediaSession.metadata = new MediaMetadata({title:state.music.tracks[i].name, artist:'Octagon Cycling'});
+  }
+  renderMusicList(); renderMiniPlayer();
+}
+state.music.el.addEventListener('ended', ()=>{ if(state.music.idx<state.music.tracks.length-1) playTrack(state.music.idx+1); });
+function renderMiniPlayer(){
+  const wraps=[$('in-music-wrap')];
+  const has=state.music.tracks.length>0;
+  wraps.forEach(w=>{
+    if(!w) return;
+    if(!has){ w.innerHTML=''; return; }
+    const playing=!state.music.el.paused;
+    const t=state.music.tracks[state.music.idx] || state.music.tracks[0];
+    w.innerHTML = `<div class="miniplayer">
+      <button id="mp-prev"><svg viewBox="0 0 24 24"><path d="M19 20L9 12l10-8v16zM5 19V5"/></svg></button>
+      <button id="mp-play"><svg viewBox="0 0 24 24">${playing?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M8 5v14l11-7z"/>'}</svg></button>
+      <button id="mp-next"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8V4zM19 5v14"/></svg></button>
+      <div class="info"><div class="title">${t?t.name:'Sin canción'}</div><div class="muted">Música local</div></div>
+    </div>`;
+    $('mp-prev')?.addEventListener('click',()=>playTrack(clamp((state.music.idx||0)-1,0,state.music.tracks.length-1)));
+    $('mp-next')?.addEventListener('click',()=>playTrack(clamp((state.music.idx||0)+1,0,state.music.tracks.length-1)));
+    $('mp-play')?.addEventListener('click',()=>{
+      if(state.music.idx<0) return playTrack(0);
+      if(state.music.el.paused) state.music.el.play().catch(()=>{}); else state.music.el.pause();
+      setTimeout(renderMiniPlayer,80);
+    });
+  });
+}
+state.music.el.addEventListener('play',renderMiniPlayer);
+state.music.el.addEventListener('pause',renderMiniPlayer);
+
+/* ================================================================
+   PWA-ish: dynamic manifest so "add to home screen" looks like an app
+   ================================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+
+/* ================= init ================= */
+initStorage();
+renderDashboard();
+renderMusicList(); renderMiniPlayer();
+})();
+</script>
+
+</body>
+</html>
