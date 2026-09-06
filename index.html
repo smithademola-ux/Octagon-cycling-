@@ -282,11 +282,67 @@ canvas{display:block;width:100%;border-radius:var(--radius-s);background:var(--s
 .helpbox svg{width:16px;height:16px;stroke:var(--accent);flex-shrink:0;margin-top:1px;}
 
 a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:pointer;}
+[hidden]{display:none!important;} /* guards against component classes (.btn, .icon-btn, etc.) that set their own display and would otherwise win over a bare [hidden] attribute */
+
+/* ============ profile gate (family member switcher) ============ */
+.profilegate{
+  position:fixed;inset:0;z-index:80;background:var(--bg);
+  display:flex;flex-direction:column;
+  max-width:480px;margin:0 auto;
+}
+.profilegate[hidden]{display:none;}
+#btn-pg-close[hidden]{display:none;}
+.pg-head{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 4px;}
+.pg-body{flex:1;overflow-y:auto;padding:16px 20px 40px;display:flex;flex-direction:column;}
+.pg-title{font-family:var(--font-display);font-size:22px;letter-spacing:.02em;margin-bottom:4px;}
+.pg-sub{color:var(--text-muted);font-size:13.5px;margin-bottom:22px;}
+.avatar{
+  width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-size:20px;color:#fff;flex-shrink:0;box-shadow:var(--shadow);
+}
+.avatar.sm{width:34px;height:34px;font-size:13px;}
+.profilegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:8px;}
+.profilechip{
+  display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:none;
+  cursor:pointer;padding:8px 4px;border-radius:var(--radius-m);color:var(--text);
+}
+.profilechip:active{transform:scale(.97);}
+.profilechip .pc-name{font-size:12.5px;font-weight:700;text-align:center;line-height:1.2;word-break:break-word;}
+.profilechip.addnew .avatar{background:var(--surface-2);border:2px dashed var(--border);color:var(--text-muted);}
+.colorswatches{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.colorswatch{width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;flex-shrink:0;}
+.colorswatch.selected{border-color:var(--text);}
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto;width:100%;}
+.pinpad button{
+  aspect-ratio:1;border-radius:50%;border:1px solid var(--border);background:var(--surface);
+  color:var(--text);font-size:22px;font-weight:700;cursor:pointer;font-family:var(--font-mono);
+}
+.pinpad button:active{background:var(--surface-2);}
+.pindots{display:flex;justify-content:center;gap:14px;margin:26px 0;}
+.pindot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);}
+.pindot.filled{background:var(--accent);border-color:var(--accent);}
+.pg-profile-header{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:8px;flex-direction:column;}
+.profile-badge{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:4px 12px 4px 4px;cursor:pointer;}
+.profile-badge .pb-name{font-size:12.5px;font-weight:700;}
 </style>
 
+<!-- ============ PROFILE GATE (family member picker / PIN lock) ============ -->
 
 </head>
 <body>
+<div class="profilegate" id="profile-gate" hidden>
+  <div class="pg-head">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="6"/><circle cx="8" cy="15" r="1.3" fill="currentColor" stroke="none"/><path d="M8 15L14 6"/><path d="M14 6h3"/><path d="M8 15h6.5"/><path d="M14.5 15L17 9"/><path d="M15.5 8.6h3"/></svg>
+      </div>
+      <div class="brand-name">OCTAGON<span class="brand-sub">Cycling</span></div>
+    </div>
+    <button class="icon-btn" id="btn-pg-close" hidden aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="pg-body" id="pg-body"><!-- filled by renderProfileGate() --></div>
+</div>
+
 <div class="app" id="app">
   <div class="topbar">
     <div class="brand">
@@ -295,9 +351,15 @@ a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:point
       </div>
       <div class="brand-name">OCTAGON<span class="brand-sub">Cycling</span></div>
     </div>
-    <button class="icon-btn" id="btn-open-settings" aria-label="Ajustes">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.63.8 1.11 1.56 1.04H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="profile-badge" id="btn-profile-badge" aria-label="Cambiar de perfil">
+        <span class="avatar sm" id="pb-avatar">?</span>
+        <span class="pb-name" id="pb-name">—</span>
+      </button>
+      <button class="icon-btn" id="btn-open-settings" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.63.8 1.11 1.56 1.04H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></svg>
+      </button>
+    </div>
   </div>
 
   <div class="screens" id="screens">
@@ -478,7 +540,25 @@ a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:point
     <button class="icon-btn" id="btn-close-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
   </div>
   <div class="panel-body">
-    <div class="section-title" style="margin-top:0;">Perfil</div>
+    <div class="section-title" style="margin-top:0;">Miembro activo</div>
+    <div class="row card" style="align-items:center;">
+      <div class="row" style="gap:10px;">
+        <span class="avatar sm" id="set-pf-avatar">?</span>
+        <span style="font-weight:700;" id="set-pf-name">—</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" id="btn-edit-profile" style="width:auto;flex:1;">Editar perfil</button>
+      <button class="btn btn-sm" id="btn-switch-profile" style="width:auto;flex:1;">Cambiar de perfil</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-sm" id="btn-add-profile" style="width:auto;flex:1;">Añadir miembro</button>
+      <button class="btn btn-sm btn-danger" id="btn-delete-profile" style="width:auto;flex:1;">Eliminar este perfil</button>
+    </div>
+    <button class="btn btn-sm" id="btn-open-admin" style="margin-top:10px;" hidden>Panel de administrador</button>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-top:0;">Datos físicos</div>
     <div class="field"><label>FTP (potencia umbral, W)</label><input type="number" id="set-ftp" min="30" max="600"></div>
     <div class="field"><label>Frecuencia cardíaca máxima</label><input type="number" id="set-hrmax" min="100" max="230"></div>
     <div class="field"><label>Peso (kg)</label><input type="number" id="set-weight" min="30" max="200"></div>
@@ -499,7 +579,20 @@ a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:point
     <div class="divider"></div>
     <div class="section-title" style="margin-top:0;">Datos</div>
     <div class="small muted" id="storage-status" style="margin-bottom:10px;"></div>
-    <button class="btn btn-sm btn-danger" id="btn-clear-data">Borrar todos mis datos</button>
+    <button class="btn btn-sm btn-danger" id="btn-clear-data">Borrar historial y entrenos de este perfil</button>
+  </div>
+</div>
+
+<!-- admin panel: overview + moderation of every family profile -->
+<div class="overlay" id="admin-overlay"></div>
+<div class="panel" id="admin-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Panel de administrador</h3>
+    <button class="icon-btn" id="btn-close-admin"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <div class="small muted" style="margin-bottom:14px;">Uso y control de todos los perfiles de la app. Un perfil restringido no podrá iniciar sesión aunque conozca su PIN.</div>
+    <div id="admin-list" class="stack"></div>
   </div>
 </div>
 
@@ -579,25 +672,52 @@ const ZONE_NAMES={1:'Recuperación',2:'Resistencia',3:'Tempo',4:'Umbral',5:'VO2m
 /* ================= state ================= */
 const state={
   settings:{ftp:200,hrMax:185,weightKg:75,wheelCircMm:2105},
-  workouts:[], // custom, from db/local
-  sessions:[], // from db/local
+  workouts:[], // custom, from db/local - belongs to the active profile
+  sessions:[], // from db/local - belongs to the active profile
   db:null, downloads:null, dbReady:false,
   screen:'dashboard',
   music:{tracks:[],idx:-1,el:new Audio()},
   diagLog:[],
+  profiles:[], // family members: [{id,name,color,pin,settings,workouts,sessions}]
+  activeProfileId:null,
+  pendingMigration:null, // legacy single-user data offered to the first profile created
 };
+const PROFILE_COLORS=['#c8481f','#2f6f4e','#2f5f9e','#9e6b2f','#7a3f9e','#2f8f9e','#9e2f5e','#5e7a2f'];
 
-/* ================= persistence layer ================= */
-const LS_KEY='rodado_v1';
-function lsLoad(){
-  try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}');}catch(e){return {};}
+/* ================= persistence layer =================
+   Everything (settings/workouts/sessions) belongs to a profile now. state.settings/
+   state.workouts/state.sessions always point at the ACTIVE profile's own data, so all
+   the existing screens keep reading/writing them exactly as before; switching profiles
+   just repoints these three references and re-renders. */
+const LS_LEGACY_KEY='rodado_v1'; // pre-profiles single-user storage, read once to migrate
+const LS_PROFILES_KEY='octagon_profiles_v1';
+function lsLoadLegacy(){
+  try{return JSON.parse(localStorage.getItem(LS_LEGACY_KEY)||'{}');}catch(e){return {};}
 }
-function lsSave(patch){
-  try{
-    const cur=lsLoad();
-    const next=Object.assign({},cur,patch);
-    localStorage.setItem(LS_KEY,JSON.stringify(next));
-  }catch(e){/* storage unavailable, ignore */}
+function lsLoadProfiles(){
+  try{return JSON.parse(localStorage.getItem(LS_PROFILES_KEY)||'null');}catch(e){return null;}
+}
+function lsSaveProfiles(){
+  try{ localStorage.setItem(LS_PROFILES_KEY, JSON.stringify({activeProfileId:state.activeProfileId, profiles:state.profiles})); }
+  catch(e){/* storage unavailable, ignore */}
+}
+function activeProfile(){ return state.profiles.find(p=>p.id===state.activeProfileId) || null; }
+function syncActiveProfile(){
+  const p=activeProfile();
+  if(p){ p.settings=state.settings; p.workouts=state.workouts; p.sessions=state.sessions; }
+  return p;
+}
+function profileToDoc(p){
+  return {name:p.name,color:p.color,pin:p.pin,photo:p.photo||null,isAdmin:!!p.isAdmin,restricted:!!p.restricted,
+    ftp:p.settings.ftp,hrMax:p.settings.hrMax,weightKg:p.settings.weightKg,wheelCircMm:p.settings.wheelCircMm};
+}
+function profileFromDoc(id,data){
+  return {
+    id, name:data.name||'Ciclista', color:data.color||PROFILE_COLORS[0], pin:data.pin||'0000',
+    photo:data.photo||null, isAdmin:!!data.isAdmin, restricted:!!data.restricted,
+    settings:{ftp:data.ftp||200,hrMax:data.hrMax||185,weightKg:data.weightKg||75,wheelCircMm:data.wheelCircMm||2105},
+    workouts:[], sessions:[],
+  };
 }
 
 async function initStorage(){
@@ -610,43 +730,85 @@ async function initStorage(){
   state.dbReady = !!state.db;
   updateStorageStatusUI();
 
-  // settings
-  const local = lsLoad();
-  if(local.settings) Object.assign(state.settings,local.settings);
   if(state.db){
     try{
-      const snap = await state.db.doc('settings/main').get();
-      if(snap.exists) Object.assign(state.settings, snap.data());
-      state.db.doc('settings/main').onSnapshot(s=>{ if(s.exists){Object.assign(state.settings,s.data()); renderSettingsForm(); renderDashboard();} });
+      const qs = await state.db.collection('profiles').get();
+      if(qs.docs.length) state.profiles = qs.docs.map(d=>profileFromDoc(d.id,d.data()));
     }catch(e){}
   }
-  renderSettingsForm();
+  if(!state.profiles.length){
+    const stored = lsLoadProfiles();
+    if(stored && stored.profiles && stored.profiles.length) state.profiles = stored.profiles;
+  }
+  if(!state.profiles.length){
+    const legacy = lsLoadLegacy();
+    if(legacy && (legacy.settings || (legacy.workouts&&legacy.workouts.length) || (legacy.sessions&&legacy.sessions.length))){
+      state.pendingMigration = legacy;
+    }
+  }
+  // back-fill fields for profiles created before photos/admin/restrict existed, and make sure
+  // there is always exactly one owner: whoever's profile came first becomes administrator.
+  state.profiles.forEach(p=>{
+    if(p.photo===undefined) p.photo=null;
+    if(p.restricted===undefined) p.restricted=false;
+    if(p.isAdmin===undefined) p.isAdmin=false;
+  });
+  if(state.profiles.length && !state.profiles.some(p=>p.isAdmin)){
+    state.profiles[0].isAdmin=true;
+    lsSaveProfiles();
+    if(state.db){ try{ state.db.collection('profiles').doc(state.profiles[0].id).set(profileToDoc(state.profiles[0])); }catch(e){} }
+  }
+  showProfileGate(state.profiles.length ? 'grid' : 'create', {mandatory:true});
+}
 
-  // workouts
+async function loadProfileRemoteData(p){
+  if(!state.db) return;
+  try{
+    const qw = await state.db.collection('workouts').orderBy('createdAt','desc').get();
+    p.workouts = qw.docs.filter(d=>d.data().profileId===p.id).map(d=>Object.assign({id:d.id},d.data()));
+  }catch(e){}
+  try{
+    const qs = await state.db.collection('sessions').orderBy('startedAt','desc').limit(200).get();
+    p.sessions = qs.docs.filter(d=>d.data().profileId===p.id).map(d=>Object.assign({id:d.id},d.data()));
+  }catch(e){}
+}
+
+async function activateProfile(id){
+  const p = state.profiles.find(x=>x.id===id); if(!p) return;
+  state.activeProfileId = id;
+  await loadProfileRemoteData(p);
+  state.settings = p.settings; state.workouts = p.workouts; state.sessions = p.sessions;
+  lsSaveProfiles();
+  hideProfileGate();
+  renderSettingsForm(); renderDashboard(); renderWorkoutsScreen(); renderHistoryScreen();
+  renderWorkoutPickerName(); renderMusicList(); renderMiniPlayer(); updateProfileBadge(); updateAdminVisibility();
+}
+
+function updateAdminVisibility(){
+  const p=activeProfile();
+  const btn=$('btn-open-admin');
+  if(btn) btn.hidden = !(p && p.isAdmin);
+}
+function summarizeSessions(sessions){
+  const list=sessions||[];
+  const km=list.reduce((a,s)=>a+(s.distanceKm||0),0);
+  const sec=list.reduce((a,s)=>a+(s.durationSec||0),0);
+  let last=null;
+  list.forEach(s=>{ if(s.startedAt && (!last || new Date(s.startedAt)>new Date(last))) last=s.startedAt; });
+  return {count:list.length, km, sec, last};
+}
+async function computeAllProfileStats(){
+  const map={};
+  state.profiles.forEach(p=>{ map[p.id]=summarizeSessions(p.sessions); });
   if(state.db){
     try{
-      state.db.collection('workouts').orderBy('createdAt','desc').onSnapshot(qs=>{
-        state.workouts = qs.docs.map(d=>Object.assign({id:d.id},d.data()));
-        renderWorkoutsScreen();
-      }, ()=>{ state.workouts = local.workouts||[]; renderWorkoutsScreen(); });
-    }catch(e){ state.workouts = local.workouts||[]; renderWorkoutsScreen(); }
-  } else {
-    state.workouts = local.workouts||[];
-    renderWorkoutsScreen();
+      const qs = await state.db.collection('sessions').limit(1000).get();
+      const byProfile={};
+      qs.docs.forEach(d=>{ const data=d.data(); if(!data.profileId) return; (byProfile[data.profileId]=byProfile[data.profileId]||[]).push(data); });
+      state.profiles.forEach(p=>{ if(byProfile[p.id]) map[p.id]=summarizeSessions(byProfile[p.id]); });
+    }catch(e){}
   }
-
-  // sessions
-  if(state.db){
-    try{
-      state.db.collection('sessions').orderBy('startedAt','desc').limit(200).onSnapshot(qs=>{
-        state.sessions = qs.docs.map(d=>Object.assign({id:d.id},d.data()));
-        renderDashboard(); renderHistoryScreen();
-      }, ()=>{ state.sessions = local.sessions||[]; renderDashboard(); renderHistoryScreen(); });
-    }catch(e){ state.sessions = local.sessions||[]; renderDashboard(); renderHistoryScreen(); }
-  } else {
-    state.sessions = local.sessions||[];
-    renderDashboard(); renderHistoryScreen();
-  }
+  return map;
 }
 
 function updateStorageStatusUI(){
@@ -654,47 +816,375 @@ function updateStorageStatusUI(){
   if(!el)return;
   el.textContent = state.dbReady
     ? 'Tus datos se guardan de forma segura en tu cuenta de Claude y estarán disponibles la próxima vez que abras Octagon Cycling.'
-    : 'Ahora mismo Octagon Cycling solo puede guardar tus datos en este navegador (no hay sincronización). Abre la app con tu cuenta de Claude iniciada para guardar tu historial de forma permanente.';
+    : 'Ahora mismo Octagon Cycling solo puede guardar tus datos en este navegador (no hay sincronización).';
 }
 
 async function saveSettings(){
-  lsSave({settings:state.settings});
-  if(state.db){ try{ await state.db.doc('settings/main').set(state.settings); }catch(e){} }
+  const p=syncActiveProfile(); lsSaveProfiles();
+  if(state.db && p){ try{ await state.db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){} }
 }
 async function saveWorkout(w){
-  if(state.db){
-    try{ await state.db.collection('workouts').doc(w.id).set(w); return; }catch(e){}
-  }
-  const local=lsLoad(); const list=(local.workouts||[]).filter(x=>x.id!==w.id); list.unshift(w);
-  lsSave({workouts:list}); state.workouts=list; renderWorkoutsScreen();
+  const p=activeProfile(); if(!p) return;
+  if(state.db){ try{ await state.db.collection('workouts').doc(w.id).set(Object.assign({profileId:p.id},w)); }catch(e){} }
+  const list=state.workouts.filter(x=>x.id!==w.id); list.unshift(w);
+  state.workouts=list; syncActiveProfile(); lsSaveProfiles(); renderWorkoutsScreen();
 }
 async function deleteWorkout(id){
-  if(state.db){ try{ await state.db.collection('workouts').doc(id).delete(); return; }catch(e){} }
-  const local=lsLoad(); const list=(local.workouts||[]).filter(x=>x.id!==id);
-  lsSave({workouts:list}); state.workouts=list; renderWorkoutsScreen();
+  const p=activeProfile(); if(!p) return;
+  if(state.db){ try{ await state.db.collection('workouts').doc(id).delete(); }catch(e){} }
+  const list=state.workouts.filter(x=>x.id!==id);
+  state.workouts=list; syncActiveProfile(); lsSaveProfiles(); renderWorkoutsScreen();
 }
 async function saveSession(s){
+  const p=activeProfile(); if(!p) return;
   s.id = s.id || uid();
-  if(state.db){
-    try{ await state.db.collection('sessions').doc(s.id).set(s); return; }catch(e){}
-  }
-  const local=lsLoad(); const list=(local.sessions||[]).filter(x=>x.id!==s.id); list.unshift(s);
-  lsSave({sessions:list}); state.sessions=list; renderDashboard(); renderHistoryScreen();
+  if(state.db){ try{ await state.db.collection('sessions').doc(s.id).set(Object.assign({profileId:p.id},s)); }catch(e){} }
+  const list=state.sessions.filter(x=>x.id!==s.id); list.unshift(s);
+  state.sessions=list; syncActiveProfile(); lsSaveProfiles();
+  renderDashboard(); renderHistoryScreen();
 }
 async function clearAllData(){
-  lsSave({settings:state.settings,workouts:[],sessions:[]});
+  const p=activeProfile(); if(!p) return;
   state.workouts=[]; state.sessions=[];
+  syncActiveProfile(); lsSaveProfiles();
   if(state.db){
     try{
       const qs = await state.db.collection('sessions').limit(500).get();
-      for(const d of qs.docs){ await state.db.collection('sessions').doc(d.id).delete(); }
+      for(const d of qs.docs){ if(d.data().profileId===p.id) await state.db.collection('sessions').doc(d.id).delete(); }
       const qw = await state.db.collection('workouts').limit(500).get();
-      for(const d of qw.docs){ await state.db.collection('workouts').doc(d.id).delete(); }
+      for(const d of qw.docs){ if(d.data().profileId===p.id) await state.db.collection('workouts').doc(d.id).delete(); }
     }catch(e){}
   }
   renderDashboard(); renderHistoryScreen(); renderWorkoutsScreen();
   toast('Datos borrados');
 }
+
+/* ================= profiles: create / delete / gate UI ================= */
+function createProfile({name,color,pin,photo}){
+  const isFirst = state.profiles.length===0;
+  const p={
+    id:'pf-'+uid(), name, color, pin, photo:photo||null,
+    isAdmin:isFirst, restricted:false,
+    settings:{ftp:200,hrMax:185,weightKg:75,wheelCircMm:2105},
+    workouts:[], sessions:[],
+  };
+  if(state.pendingMigration){
+    const leg=state.pendingMigration;
+    if(leg.settings) Object.assign(p.settings, leg.settings);
+    if(leg.workouts) p.workouts=leg.workouts;
+    if(leg.sessions) p.sessions=leg.sessions;
+    state.pendingMigration=null;
+  }
+  state.profiles.push(p);
+  lsSaveProfiles();
+  if(state.db){ try{ state.db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){} }
+  return p;
+}
+async function deleteProfileById(id){
+  const p=state.profiles.find(x=>x.id===id); if(!p) return;
+  const wasActive = state.activeProfileId===id;
+  state.profiles = state.profiles.filter(x=>x.id!==id);
+  if(wasActive) state.activeProfileId=null;
+  lsSaveProfiles();
+  if(state.db){
+    try{
+      await state.db.collection('profiles').doc(id).delete();
+      const qs = await state.db.collection('sessions').limit(500).get();
+      for(const d of qs.docs){ if(d.data().profileId===id) await state.db.collection('sessions').doc(d.id).delete(); }
+      const qw = await state.db.collection('workouts').limit(500).get();
+      for(const d of qw.docs){ if(d.data().profileId===id) await state.db.collection('workouts').doc(d.id).delete(); }
+    }catch(e){}
+  }
+  if(wasActive){
+    closePanel('settings'); closePanel('admin');
+    showProfileGate(state.profiles.length?'grid':'create',{mandatory:true});
+  } else {
+    toast('Perfil eliminado');
+  }
+}
+async function deleteActiveProfile(){ const p=activeProfile(); if(p) await deleteProfileById(p.id); }
+function initials(name){
+  return (name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?';
+}
+function avatarHTML(p, sizeClass){
+  const cls='avatar'+(sizeClass?' '+sizeClass:'');
+  if(p.photo) return `<span class="${cls}" style="background:${p.color};overflow:hidden;"><img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></span>`;
+  return `<span class="${cls}" style="background:${p.color}">${initials(p.name)}</span>`;
+}
+function resizeImageFile(file, size){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const min=Math.min(img.width,img.height);
+        const sx=(img.width-min)/2, sy=(img.height-min)/2;
+        const canvas=document.createElement('canvas');
+        canvas.width=size; canvas.height=size;
+        canvas.getContext('2d').drawImage(img, sx,sy,min,min, 0,0,size,size);
+        resolve(canvas.toDataURL('image/jpeg',0.85));
+      };
+      img.onerror=()=>reject(new Error('imagen inválida'));
+      img.src=reader.result;
+    };
+    reader.onerror=()=>reject(new Error('no se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+function updateProfileBadge(){
+  const p=activeProfile(); if(!p) return;
+  [['pb-avatar','pb-name'],['set-pf-avatar','set-pf-name']].forEach(([av,nm])=>{
+    const a=$(av), n=$(nm);
+    if(a){
+      a.style.background=p.color;
+      a.innerHTML = p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : initials(p.name);
+    }
+    if(n){ n.textContent=p.name; }
+  });
+}
+async function renderAdminPanel(){
+  const statsMap = await computeAllProfileStats();
+  const me = activeProfile();
+  $('admin-list').innerHTML = state.profiles.map(p=>{
+    const st=statsMap[p.id]||{count:0,km:0,sec:0,last:null};
+    const isMe = me && p.id===me.id;
+    return `<div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div class="row" style="gap:10px;align-items:center;">
+          ${avatarHTML(p,'sm')}
+          <div>
+            <div style="font-weight:700;">${p.name}${isMe?' <span class="tag">Tú</span>':''}${p.isAdmin?' <span class="tag">Admin</span>':''}${p.restricted?' <span class="tag" style="background:var(--danger);color:#fff;">Restringido</span>':''}</div>
+            <div class="small muted">${st.count} sesiones · ${st.km.toFixed(1)} km · ${fmtHMS(st.sec)}</div>
+            <div class="small muted">${st.last?'Última: '+fmtDateLong(st.last):'Sin sesiones todavía'}</div>
+          </div>
+        </div>
+      </div>
+      ${isMe?'':`<div class="btn-row" style="margin-top:10px;align-items:center;">
+        <label class="row small" style="gap:8px;flex:1;"><span class="switch"><input type="checkbox" data-restrict="${p.id}" ${p.restricted?'checked':''}><span class="track"></span></span> Restringir</label>
+        <label class="row small" style="gap:8px;flex:1;"><span class="switch"><input type="checkbox" data-makeadmin="${p.id}" ${p.isAdmin?'checked':''}><span class="track"></span></span> Admin</label>
+      </div>
+      <button class="btn btn-sm btn-danger" data-admindel="${p.id}" style="margin-top:8px;">Eliminar perfil</button>`}
+    </div>`;
+  }).join('');
+  qsa('[data-restrict]').forEach(cb=>cb.addEventListener('change',()=>{
+    const p=state.profiles.find(x=>x.id===cb.dataset.restrict); if(!p) return;
+    p.restricted=cb.checked; lsSaveProfiles();
+    if(state.db){ try{ state.db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){} }
+    toast(p.restricted?'Perfil restringido':'Restricción quitada');
+  }));
+  qsa('[data-makeadmin]').forEach(cb=>cb.addEventListener('change',()=>{
+    const p=state.profiles.find(x=>x.id===cb.dataset.makeadmin); if(!p) return;
+    if(!cb.checked && state.profiles.filter(x=>x.isAdmin).length<=1){ toast('Debe haber al menos un administrador'); cb.checked=true; return; }
+    p.isAdmin=cb.checked; lsSaveProfiles();
+    if(state.db){ try{ state.db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){} }
+    toast(p.isAdmin?'Ahora es administrador':'Ya no es administrador');
+  }));
+  qsa('[data-admindel]').forEach(b=>b.addEventListener('click',()=>{
+    const p=state.profiles.find(x=>x.id===b.dataset.admindel); if(!p) return;
+    if(confirm('¿Eliminar el perfil "'+p.name+'" y todo su historial? No se puede deshacer.')){
+      deleteProfileById(p.id).then(renderAdminPanel);
+    }
+  }));
+}
+
+/* ---- profile gate state machine: grid (pick) -> pin (unlock) -> create (new member) ---- */
+const pgState={mode:'grid', targetId:null, pinBuffer:'', createStep:{name:'',color:PROFILE_COLORS[0],photo:null}, editStep:{name:'',color:PROFILE_COLORS[0],photo:null}};
+function showProfileGate(mode,opts){
+  pgState.mode=mode; pgState.pinBuffer='';
+  const gate=$('profile-gate'); gate.hidden=false;
+  $('btn-pg-close').hidden = !!(opts&&opts.mandatory);
+  renderProfileGate();
+}
+function hideProfileGate(){ $('profile-gate').hidden=true; }
+$('btn-pg-close').addEventListener('click',()=>hideProfileGate());
+
+function renderProfileGate(){
+  const body=$('pg-body');
+  if(pgState.mode==='grid'){
+    body.innerHTML = `
+      <div class="pg-title">¿Quién pedalea?</div>
+      <div class="pg-sub">Elige tu perfil para ver tu historial y tus ajustes.</div>
+      <div class="profilegrid" id="pg-grid"></div>`;
+    const grid=$('pg-grid');
+    state.profiles.forEach(p=>{
+      const b=document.createElement('button');
+      b.className='profilechip'; b.dataset.pid=p.id;
+      b.innerHTML=`${avatarHTML(p)}<span class="pc-name">${p.name}</span>`;
+      b.addEventListener('click',()=>{ pgState.targetId=p.id; showProfileGate('pin'); });
+      grid.appendChild(b);
+    });
+    const add=document.createElement('button');
+    add.className='profilechip addnew';
+    add.innerHTML=`<span class="avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><span class="pc-name">Añadir miembro</span>`;
+    add.addEventListener('click',()=>{ pgState.createStep={name:'',color:PROFILE_COLORS[state.profiles.length%PROFILE_COLORS.length],photo:null}; showProfileGate('create'); });
+    grid.appendChild(add);
+  } else if(pgState.mode==='pin'){
+    const p=state.profiles.find(x=>x.id===pgState.targetId);
+    body.innerHTML = `
+      <div class="pg-profile-header">
+        ${avatarHTML(p)}
+        <div class="pg-title" style="font-size:18px;">${p.name}</div>
+      </div>
+      <div class="pg-sub" style="text-align:center;">Introduce tu PIN de 4 dígitos</div>
+      <div class="pindots" id="pg-pindots"></div>
+      <div class="pinpad" id="pg-pinpad"></div>
+      <button class="btn btn-sm" id="pg-back" style="margin-top:18px;width:auto;align-self:center;">← Volver</button>`;
+    renderPinDots();
+    ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+      const btn=document.createElement('button');
+      if(k===''){ btn.style.visibility='hidden'; $('pg-pinpad').appendChild(btn); return; }
+      btn.textContent=k;
+      btn.addEventListener('click',()=>onPinKey(k));
+      $('pg-pinpad').appendChild(btn);
+    });
+    $('pg-back').addEventListener('click',()=>showProfileGate('grid'));
+  } else if(pgState.mode==='create'){
+    body.innerHTML = `
+      <div class="pg-title">Nuevo perfil</div>
+      <div class="pg-sub">Crea un perfil para cada miembro de la familia.</div>
+      <div class="field"><label>Nombre</label><input type="text" id="pg-new-name" maxlength="20" placeholder="p. ej. Mathew" value="${pgState.createStep.name||''}"></div>
+      <label>Foto (opcional)</label>
+      <div class="row" style="gap:12px;margin-bottom:16px;">
+        <span id="pg-photo-preview">${avatarHTML({photo:pgState.createStep.photo,color:pgState.createStep.color,name:pgState.createStep.name||'?'})}</span>
+        <div class="stack" style="gap:6px;">
+          <button type="button" class="btn btn-sm" id="pg-photo-pick" style="width:auto;">Elegir foto</button>
+          ${pgState.createStep.photo?'<button type="button" class="btn btn-sm btn-ghost" id="pg-photo-remove" style="width:auto;">Quitar foto</button>':''}
+        </div>
+      </div>
+      <input type="file" id="pg-photo-input" accept="image/*" style="display:none;">
+      <label>Color</label>
+      <div class="colorswatches" id="pg-colors"></div>
+      <label>PIN de 4 dígitos</label>
+      <div class="pindots" id="pg-pindots" style="margin-top:6px;"></div>
+      <div class="pinpad" id="pg-pinpad"></div>
+      ${state.profiles.length?'<button class="btn btn-sm" id="pg-back" style="margin-top:18px;width:auto;align-self:center;">← Volver</button>':''}`;
+    $('pg-new-name').addEventListener('input',(e)=>{ pgState.createStep.name=e.target.value; });
+    const cw=$('pg-colors');
+    PROFILE_COLORS.forEach(c=>{
+      const sw=document.createElement('button');
+      sw.className='colorswatch'+(c===pgState.createStep.color?' selected':'');
+      sw.style.background=c; sw.type='button';
+      sw.addEventListener('click',()=>{
+        pgState.createStep.color=c; qsa('.colorswatch',cw).forEach(s=>s.classList.remove('selected')); sw.classList.add('selected');
+        if(!pgState.createStep.photo) $('pg-photo-preview').style.background='';
+        $('pg-photo-preview').innerHTML=avatarHTML({photo:pgState.createStep.photo,color:pgState.createStep.color,name:pgState.createStep.name||'?'});
+      });
+      cw.appendChild(sw);
+    });
+    $('pg-photo-pick').addEventListener('click',()=>$('pg-photo-input').click());
+    $('pg-photo-input').addEventListener('change', async (e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      try{ pgState.createStep.photo=await resizeImageFile(f,160); renderProfileGate(); }
+      catch(err){ toast('No se pudo cargar la foto'); }
+    });
+    if($('pg-photo-remove')) $('pg-photo-remove').addEventListener('click',()=>{ pgState.createStep.photo=null; renderProfileGate(); });
+    renderPinDots();
+    ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+      const btn=document.createElement('button');
+      if(k===''){ btn.style.visibility='hidden'; $('pg-pinpad').appendChild(btn); return; }
+      btn.textContent=k;
+      btn.addEventListener('click',()=>onPinKey(k));
+      $('pg-pinpad').appendChild(btn);
+    });
+    if($('pg-back')) $('pg-back').addEventListener('click',()=>showProfileGate('grid'));
+  } else if(pgState.mode==='edit'){
+    const p=activeProfile();
+    body.innerHTML = `
+      <div class="pg-title">Editar perfil</div>
+      <div class="field"><label>Nombre</label><input type="text" id="pg-edit-name" maxlength="20" value="${p.name}"></div>
+      <label>Foto (opcional)</label>
+      <div class="row" style="gap:12px;margin-bottom:16px;">
+        <span id="pg-photo-preview">${avatarHTML({photo:pgState.editStep.photo,color:pgState.editStep.color,name:pgState.editStep.name||'?'})}</span>
+        <div class="stack" style="gap:6px;">
+          <button type="button" class="btn btn-sm" id="pg-photo-pick" style="width:auto;">Elegir foto</button>
+          ${pgState.editStep.photo?'<button type="button" class="btn btn-sm btn-ghost" id="pg-photo-remove" style="width:auto;">Quitar foto</button>':''}
+        </div>
+      </div>
+      <input type="file" id="pg-photo-input" accept="image/*" style="display:none;">
+      <label>Color</label>
+      <div class="colorswatches" id="pg-colors"></div>
+      <button class="btn btn-primary" id="pg-edit-save" style="margin-top:18px;">Guardar cambios</button>
+      <button class="btn btn-sm" id="pg-back" style="margin-top:10px;width:auto;align-self:center;">← Volver</button>`;
+    $('pg-edit-name').addEventListener('input',(e)=>{ pgState.editStep.name=e.target.value; });
+    const cw=$('pg-colors');
+    PROFILE_COLORS.forEach(c=>{
+      const sw=document.createElement('button');
+      sw.className='colorswatch'+(c===pgState.editStep.color?' selected':'');
+      sw.style.background=c; sw.type='button';
+      sw.addEventListener('click',()=>{
+        pgState.editStep.color=c; qsa('.colorswatch',cw).forEach(s=>s.classList.remove('selected')); sw.classList.add('selected');
+        $('pg-photo-preview').innerHTML=avatarHTML({photo:pgState.editStep.photo,color:pgState.editStep.color,name:pgState.editStep.name||'?'});
+      });
+      cw.appendChild(sw);
+    });
+    $('pg-photo-pick').addEventListener('click',()=>$('pg-photo-input').click());
+    $('pg-photo-input').addEventListener('change', async (e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      try{ pgState.editStep.photo=await resizeImageFile(f,160); renderProfileGate(); }
+      catch(err){ toast('No se pudo cargar la foto'); }
+    });
+    if($('pg-photo-remove')) $('pg-photo-remove').addEventListener('click',()=>{ pgState.editStep.photo=null; renderProfileGate(); });
+    $('pg-edit-save').addEventListener('click', async ()=>{
+      const name=($('pg-edit-name').value||'').trim();
+      if(!name){ toast('Ponle un nombre a tu perfil'); return; }
+      p.name=name; p.color=pgState.editStep.color; p.photo=pgState.editStep.photo;
+      lsSaveProfiles();
+      if(state.db){ try{ await state.db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){} }
+      updateProfileBadge();
+      hideProfileGate();
+      toast('Perfil actualizado');
+    });
+    $('pg-back').addEventListener('click',()=>hideProfileGate());
+  }
+}
+function renderPinDots(){
+  const el=$('pg-pindots'); if(!el) return;
+  el.innerHTML='';
+  for(let i=0;i<4;i++){
+    const d=document.createElement('span');
+    d.className='pindot'+(i<pgState.pinBuffer.length?' filled':'');
+    el.appendChild(d);
+  }
+}
+function onPinKey(k){
+  if(k==='⌫'){ pgState.pinBuffer=pgState.pinBuffer.slice(0,-1); renderPinDots(); return; }
+  if(pgState.pinBuffer.length>=4) return;
+  pgState.pinBuffer+=k;
+  renderPinDots();
+  if(pgState.pinBuffer.length===4){
+    if(pgState.mode==='pin'){
+      const p=state.profiles.find(x=>x.id===pgState.targetId);
+      if(p && p.pin===pgState.pinBuffer){
+        if(p.restricted){ toast('Este perfil está restringido por el administrador'); pgState.pinBuffer=''; showProfileGate('grid'); return; }
+        activateProfile(p.id);
+      } else{ toast('PIN incorrecto'); pgState.pinBuffer=''; renderPinDots(); }
+    } else if(pgState.mode==='create'){
+      const name=($('pg-new-name').value||'').trim();
+      if(!name){ toast('Ponle un nombre a este perfil'); pgState.pinBuffer=''; renderPinDots(); return; }
+      const p=createProfile({name,color:pgState.createStep.color,pin:pgState.pinBuffer,photo:pgState.createStep.photo});
+      toast('Perfil creado');
+      activateProfile(p.id);
+    }
+  }
+}
+$('btn-profile-badge').addEventListener('click',()=>showProfileGate('grid'));
+$('btn-switch-profile').addEventListener('click',()=>{ closePanel('settings'); showProfileGate('grid'); });
+$('btn-add-profile').addEventListener('click',()=>{
+  closePanel('settings');
+  pgState.createStep={name:'',color:PROFILE_COLORS[state.profiles.length%PROFILE_COLORS.length],photo:null};
+  showProfileGate('create');
+});
+$('btn-edit-profile').addEventListener('click',()=>{
+  const p=activeProfile(); if(!p) return;
+  closePanel('settings');
+  pgState.editStep={name:p.name,color:p.color,photo:p.photo||null};
+  showProfileGate('edit');
+});
+$('btn-delete-profile').addEventListener('click',()=>{
+  const p=activeProfile(); if(!p) return;
+  if(state.profiles.length<=1){ toast('Necesitas al menos un perfil'); return; }
+  if(confirm('¿Eliminar el perfil "'+p.name+'" y todo su historial? No se puede deshacer.')) deleteActiveProfile();
+});
 
 /* ================= navigation ================= */
 function goto(screen){
@@ -716,6 +1206,9 @@ $('picker-overlay').addEventListener('click',()=>closePanel('picker'));
 $('btn-close-editor').addEventListener('click',()=>closePanel('editor'));
 $('editor-overlay').addEventListener('click',()=>closePanel('editor'));
 $('btn-close-detail').addEventListener('click',()=>closePanel('detail'));
+$('btn-open-admin').addEventListener('click',()=>{ renderAdminPanel(); openPanel('admin'); });
+$('btn-close-admin').addEventListener('click',()=>closePanel('admin'));
+$('admin-overlay').addEventListener('click',()=>closePanel('admin'));
 $('detail-overlay').addEventListener('click',()=>closePanel('detail'));
 
 /* ================= settings form ================= */
@@ -725,6 +1218,7 @@ function renderSettingsForm(){
   $('set-weight').value=state.settings.weightKg;
   $('set-wheel').value=state.settings.wheelCircMm;
   updateStorageStatusUI();
+  updateAdminVisibility();
 }
 $('btn-save-settings').addEventListener('click',async ()=>{
   state.settings.ftp=Number($('set-ftp').value)||200;
@@ -736,7 +1230,7 @@ $('btn-save-settings').addEventListener('click',async ()=>{
   toast('Ajustes guardados');
 });
 $('btn-clear-data').addEventListener('click',()=>{
-  if(confirm('¿Seguro que quieres borrar todo tu historial y entrenos? No se puede deshacer.')) clearAllData();
+  if(confirm('¿Seguro que quieres borrar el historial y los entrenos de este perfil? No se puede deshacer.')) clearAllData();
 });
 
 function renderDiagPanel(){
