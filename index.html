@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Octagon Cycling</title>
-<meta name="theme-color" content="#14171a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#14171a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -382,6 +382,11 @@ a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:point
         <div class="stat accent"><div class="stat-label">Potencia</div><div class="stat-value" id="in-power">–<span class="stat-unit">W</span></div></div>
         <div class="stat"><div class="stat-label">Cadencia</div><div class="stat-value" id="in-cad">–<span class="stat-unit">rpm</span></div></div>
         <div class="stat"><div class="stat-label">FC</div><div class="stat-value" id="in-hr">–<span class="stat-unit">ppm</span></div></div>
+      </div>
+      <div class="statgrid cols3" style="margin-top:10px;">
+        <div class="stat"><div class="stat-label">Velocidad</div><div class="stat-value" id="in-speed">–<span class="stat-unit">km/h</span></div></div>
+        <div class="stat"><div class="stat-label">Distancia</div><div class="stat-value" id="in-dist">0.0<span class="stat-unit">km</span></div></div>
+        <div class="stat"><div class="stat-label">Vel. media</div><div class="stat-value" id="in-avgspeed">0.0<span class="stat-unit">km/h</span></div></div>
       </div>
       <div class="statgrid" style="margin-top:10px;">
         <div class="stat"><div class="stat-label">Tiempo</div><div class="stat-value mono" id="in-time">00:00:00</div></div>
@@ -792,7 +797,7 @@ function sessionCardHTML(s){
     : '<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 11h.01M12 11h.01M17 11h.01"/>';
   const bits=[];
   bits.push(fmtHMS(s.durationSec||0));
-  if(s.type==='outdoor') bits.push((s.distanceKm||0).toFixed(1)+' km');
+  if(s.distanceKm) bits.push(s.distanceKm.toFixed(1)+' km');
   if(s.avgPower) bits.push(Math.round(s.avgPower)+' W');
   if(s.avgHr) bits.push(Math.round(s.avgHr)+' ppm');
   return `<div class="card row workout-card" data-session-id="${s.id}">
@@ -1004,7 +1009,8 @@ async function connectTrainer(){
     logDiag('Bicicleta seleccionada: '+device.name);
     sensors.trainer.device=device;
     device.addEventListener('gattserverdisconnected', ()=>{
-      sensors.trainer.connected=false; sensors.trainer.hasFtmsControl=false;
+      sensors.trainer.connected=false; sensors.trainer.hasFtmsControl=false; sensors.trainer.controlChar=null;
+      ergActive=false; const t=$('in-erg-toggle'); if(t) t.checked=false;
       updateSensorUI(); logDiag('Bicicleta desconectada');
     });
     const server = await device.gatt.connect();
@@ -1022,7 +1028,7 @@ async function connectTrainer(){
       try{
         const cp = await svc.getCharacteristic(UUID.ftmsControlPoint);
         await cp.startNotifications();
-        cp.addEventListener('characteristicvaluechanged', e=>logDiag('FTMS control resp: '+dumpBytes(e.target.value)));
+        cp.addEventListener('characteristicvaluechanged', e=>onFtmsControlResponse(e.target.value));
         sensors.trainer.controlChar=cp; sensors.trainer.hasFtmsControl=true;
         logDiag('FTMS: control ERG disponible');
       }catch(e){logDiag('FTMS: sin punto de control (sin ERG automático)');}
@@ -1191,28 +1197,70 @@ function updateLiveUI(){
   $('in-power').innerHTML = (live.power!=null?Math.round(live.power):'–')+'<span class="stat-unit">W</span>';
   $('in-cad').innerHTML = (live.cadence!=null?Math.round(live.cadence):'–')+'<span class="stat-unit">rpm</span>';
   $('in-hr').innerHTML = (live.hr!=null?Math.round(live.hr):'–')+'<span class="stat-unit">ppm</span>';
+  $('in-speed').innerHTML = (live.speed!=null?live.speed.toFixed(1):'–')+'<span class="stat-unit">km/h</span>';
 }
 
 /* ================================================================
    FTMS CONTROL (ERG mode) - best effort, brand independent
-   ================================================================ */
-async function ftmsWrite(bytes){
-  const ch=sensors.trainer.controlChar; if(!ch) return false;
-  const buf=new Uint8Array(bytes);
-  try{ await ch.writeValueWithResponse(buf); return true; }
-  catch(e){ try{ await ch.writeValueWithoutResponse(buf); return true; }catch(e2){ logDiag('Fallo al escribir control FTMS: '+e2.message); return false; } }
+   ================================================================
+   Many real trainers process control-point commands one at a time and
+   will silently ignore (or revoke control before) a command sent while
+   the previous one is still being applied. To make ERG target changes
+   land reliably between workout intervals, every write below waits for
+   the trainer's own indication response (opcode 0x80) before the next
+   command is considered "done", and a lost/failed write is retried once
+   (re-requesting control first, since some trainers drop control between
+   commands) instead of failing silently. */
+let pendingCtrlAck=null;
+function onFtmsControlResponse(dv){
+  logDiag('FTMS control resp: '+dumpBytes(dv));
+  if(dv.byteLength>=3 && dv.getUint8(0)===0x80 && pendingCtrlAck){
+    const resolve=pendingCtrlAck; pendingCtrlAck=null;
+    resolve({reqOp:dv.getUint8(1), result:dv.getUint8(2)});
+  }
 }
-async function ftmsRequestControl(){ return ftmsWrite([0x00]); }
-async function ftmsStart(){ return ftmsWrite([0x07]); }
-async function ftmsStop(){ return ftmsWrite([0x08]); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function ftmsWrite(bytes){
+  const ch=sensors.trainer.controlChar; if(!ch) return {ok:false,result:null};
+  const buf=new Uint8Array(bytes);
+  const ackPromise = new Promise(resolve=>{
+    pendingCtrlAck=resolve;
+    setTimeout(()=>{ if(pendingCtrlAck===resolve){ pendingCtrlAck=null; resolve(null); } },1500);
+  });
+  try{ await ch.writeValueWithResponse(buf); }
+  catch(e){
+    try{ await ch.writeValueWithoutResponse(buf); }
+    catch(e2){ pendingCtrlAck=null; logDiag('Fallo al escribir control FTMS: '+e2.message); return {ok:false,result:null}; }
+  }
+  const ack = await ackPromise;
+  // ack===null: trainer sent no indication (some models don't) - treat the accepted GATT write as success.
+  // result 0x01 = éxito según especificación FTMS.
+  const ok = ack===null || ack.result===0x01;
+  return {ok, result: ack?ack.result:null};
+}
+async function ftmsRequestControl(){ return (await ftmsWrite([0x00])).ok; }
+async function ftmsStart(){ return (await ftmsWrite([0x07])).ok; }
+async function ftmsStop(){ return (await ftmsWrite([0x08])).ok; }
 async function ftmsSetTargetPower(watts){
   const w=Math.round(clamp(watts,0,2000));
-  return ftmsWrite([0x05, w & 0xff, (w>>8)&0xff]);
+  const bytes=[0x05, w & 0xff, (w>>8)&0xff];
+  let res=await ftmsWrite(bytes);
+  if(!res.ok){
+    // Control not permitted (0x05) or no response: the trainer may have revoked
+    // control since the last command - re-claim it and retry once.
+    logDiag('Potencia objetivo no confirmada, reintentando control ERG...');
+    await ftmsWrite([0x00]);
+    await sleep(150);
+    res=await ftmsWrite(bytes);
+  }
+  if(!res.ok) logDiag('Aviso: la bicicleta no confirmó el cambio de potencia objetivo ('+w+' W)');
+  return res.ok;
 }
 let ergActive=false;
 async function enableErg(){
   if(!sensors.trainer.hasFtmsControl){ toast('Esta bicicleta no soporta control ERG automático'); return false; }
   const ok1=await ftmsRequestControl();
+  await sleep(150);
   const ok2=await ftmsStart();
   ergActive = ok1 && ok2;
   logDiag('ERG activado: '+ergActive);
@@ -1249,7 +1297,7 @@ const BUILTIN_WORKOUTS = [
 ];
 
 const indoorRide={ running:false, paused:false, startTs:0, pausedAccum:0, pauseStart:0, timerId:null,
-  workout:null, ivIndex:0, ivStartElapsed:0, samples:[], lastSampleTs:0 };
+  workout:null, ivIndex:0, ivStartElapsed:0, samples:[], lastSampleTs:0, distanceM:0, lastTickTs:0 };
 
 function ivElapsedTotal(){ return indoorRide.workout ? indoorRide.workout.intervals.reduce((a,iv)=>a+iv.dur,0) : 0; }
 function inElapsed(){
@@ -1282,6 +1330,25 @@ function drawWorkoutChart(workout, progressSec){
     ctx.fillRect(0,0,px,h);
     ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--text');
     ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,h); ctx.stroke();
+  }
+  // live actual-power line, dynamically overlaid on top of the target zones as you ride
+  const ftp=state.settings.ftp;
+  if(indoorRide.running && indoorRide.samples.length>1 && ftp>0){
+    ctx.beginPath();
+    let started=false, lastX=0, lastY=0;
+    indoorRide.samples.forEach(s=>{
+      if(s.power==null || s.t>total) return;
+      const pct=(s.power/ftp)*100;
+      const x=(s.t/total)*w, y=h-clamp((pct/maxPct)*(h-6),0,h-2);
+      if(!started){ ctx.moveTo(x,y); started=true; } else { ctx.lineTo(x,y); }
+      lastX=x; lastY=y;
+    });
+    if(started){
+      ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--text');
+      ctx.lineWidth=2.25; ctx.lineJoin='round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(lastX,lastY,3.5,0,7);
+      ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text'); ctx.fill();
+    }
   }
 }
 
@@ -1327,8 +1394,16 @@ async function applyCurrentTarget(){
 function indoorTick(){
   if(!indoorRide.running || indoorRide.paused) return;
   const elapsed=inElapsed();
+  const now=Date.now();
+  const dtSec = indoorRide.lastTickTs ? Math.min((now-indoorRide.lastTickTs)/1000, 3) : 1;
+  indoorRide.lastTickTs = now;
+  if(live.speed!=null){ indoorRide.distanceM += (live.speed/3600)*1000*dtSec; }
   $('in-time').textContent=fmtHMS(elapsed);
   updateLiveUI();
+  $('in-dist').innerHTML = (indoorRide.distanceM/1000).toFixed(2)+'<span class="stat-unit">km</span>';
+  const elapsedHrs = elapsed/3600;
+  const avgSpeedNow = elapsedHrs>0 ? (indoorRide.distanceM/1000)/elapsedHrs : 0;
+  $('in-avgspeed').innerHTML = avgSpeedNow.toFixed(1)+'<span class="stat-unit">km/h</span>';
 
   if(Date.now()-indoorRide.lastSampleTs>4000){
     indoorRide.samples.push({t:Math.round(elapsed),power:live.power,cadence:live.cadence,hr:live.hr,speed:live.speed});
@@ -1380,8 +1455,9 @@ function renderInControls(){
   }
 }
 async function startIndoor(){
-  Object.assign(indoorRide,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,ivIndex:0,ivStartElapsed:0,samples:[],lastSampleTs:0});
+  Object.assign(indoorRide,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,ivIndex:0,ivStartElapsed:0,samples:[],lastSampleTs:0,distanceM:0,lastTickTs:Date.now()});
   live.powerHistory=[];live.cadenceHistory=[];live.hrHistory=[];
+  $('in-dist').innerHTML='0.00<span class="stat-unit">km</span>'; $('in-avgspeed').innerHTML='0.0<span class="stat-unit">km/h</span>';
   indoorRide.timerId=setInterval(indoorTick,1000);
   requestWakeLock();
   $('btn-pick-workout').disabled = true;
@@ -1389,7 +1465,7 @@ async function startIndoor(){
   renderInControls();
 }
 function pauseIndoor(){ indoorRide.paused=true; indoorRide.pauseStart=Date.now(); releaseWakeLock(); renderInControls(); }
-function resumeIndoor(){ indoorRide.paused=false; indoorRide.pausedAccum+=Date.now()-indoorRide.pauseStart; requestWakeLock(); renderInControls(); }
+function resumeIndoor(){ indoorRide.paused=false; indoorRide.pausedAccum+=Date.now()-indoorRide.pauseStart; indoorRide.lastTickTs=Date.now(); requestWakeLock(); renderInControls(); }
 async function stopIndoor(){
   const durationSec=inElapsed();
   clearInterval(indoorRide.timerId);
@@ -1398,14 +1474,18 @@ async function stopIndoor(){
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
   const avgPower=avg(live.powerHistory), avgCadence=avg(live.cadenceHistory), avgHr=avg(live.hrHistory);
   const totalKJ = indoorRide.samples.reduce((a,s,i,arr)=>{ if(i===0) return 0; const dt=(arr[i].t-arr[i-1].t); return a+((s.power||0)*dt)/1000; },0);
+  const elapsedHrs = durationSec/3600;
+  const distanceKm = indoorRide.distanceM/1000;
+  const avgSpeedKmh = elapsedHrs>0 ? distanceKm/elapsedHrs : 0;
   const session={ type:'indoor', startedAt:new Date(indoorRide.startTs).toISOString(), durationSec:Math.round(durationSec),
-    avgPower, avgCadence, avgHr, calories:Math.round(totalKJ), workoutName: indoorRide.workout?indoorRide.workout.name:null,
+    avgPower, avgCadence, avgHr, distanceKm, avgSpeedKmh, calories:Math.round(totalKJ), workoutName: indoorRide.workout?indoorRide.workout.name:null,
     samples: indoorRide.samples };
   if(durationSec<20){ toast('Sesión demasiado corta, no se ha guardado'); }
   else { await saveSession(session); toast('Sesión indoor guardada'); }
   indoorRide.running=false; indoorRide.paused=false; indoorRide.workout=null;
   $('in-time').textContent='00:00:00'; $('in-kcal').textContent='0';
-  live.power=null;live.cadence=null;live.hr=null; updateLiveUI();
+  $('in-dist').innerHTML='0.00<span class="stat-unit">km</span>'; $('in-avgspeed').innerHTML='0.0<span class="stat-unit">km/h</span>'; $('in-speed').innerHTML='–<span class="stat-unit">km/h</span>';
+  live.power=null;live.cadence=null;live.hr=null;live.speed=null; updateLiveUI();
   $('btn-pick-workout').disabled = false;
   renderWorkoutPickerName();
   renderInControls();
@@ -1540,6 +1620,8 @@ function openSessionDetail(id){
     rows.push(['Velocidad máxima',s.maxSpeedKmh.toFixed(1)+' km/h']);
     rows.push(['Desnivel acumulado',Math.round(s.elevGainM)+' m']);
   } else {
+    if(s.distanceKm) rows.push(['Distancia',s.distanceKm.toFixed(2)+' km']);
+    if(s.avgSpeedKmh) rows.push(['Velocidad media',s.avgSpeedKmh.toFixed(1)+' km/h']);
     if(s.avgPower) rows.push(['Potencia media',Math.round(s.avgPower)+' W']);
     if(s.avgCadence) rows.push(['Cadencia media',Math.round(s.avgCadence)+' rpm']);
     if(s.avgHr) rows.push(['FC media',Math.round(s.avgHr)+' ppm']);
@@ -1550,12 +1632,18 @@ function openSessionDetail(id){
     html += `<div class="section-title">Recorrido</div><canvas id="detail-canvas" height="180"></canvas>`;
   } else if(s.samples && s.samples.length>1){
     html += `<div class="section-title">Potencia durante la sesión</div><canvas id="detail-canvas" height="140"></canvas>`;
+    if(s.samples.some(sm=>sm.cadence!=null)){
+      html += `<div class="section-title">Cadencia durante la sesión</div><canvas id="detail-canvas-cad" height="110"></canvas>`;
+    }
   }
   $('detail-body').innerHTML = html;
   openPanel('detail');
   requestAnimationFrame(()=>{
     if(s.type==='outdoor' && s.track && s.track.length>1) drawStaticTrack(s.track);
-    else if(s.samples && s.samples.length>1) drawPowerChart(s.samples);
+    else if(s.samples && s.samples.length>1){
+      drawPowerChart(s.samples);
+      if($('detail-canvas-cad')) drawCadenceChart(s.samples);
+    }
   });
 }
 function drawStaticTrack(track){
@@ -1583,6 +1671,21 @@ function drawPowerChart(samples){
   ctx.beginPath();
   samples.forEach((s,i)=>{ const x=(i/(samples.length-1))*w; const y=h-((s.power||0)/max)*(h-10); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
   ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent'); ctx.lineWidth=2; ctx.stroke();
+}
+
+function drawCadenceChart(samples){
+  const cv=$('detail-canvas-cad'); if(!cv) return; const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||320,h=110;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const cad=samples.map(s=>s.cadence||0); const max=Math.max(40,...cad);
+  const zone1=getComputedStyle(document.body).getPropertyValue('--zone1');
+  ctx.beginPath();
+  samples.forEach((s,i)=>{ const x=(i/(samples.length-1))*w; const y=h-((s.cadence||0)/max)*(h-10); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  ctx.globalAlpha=0.16; ctx.fillStyle=zone1; ctx.fill(); ctx.globalAlpha=1;
+  ctx.beginPath();
+  samples.forEach((s,i)=>{ const x=(i/(samples.length-1))*w; const y=h-((s.cadence||0)/max)*(h-10); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle=zone1; ctx.lineWidth=2; ctx.stroke();
 }
 
 $('btn-export-csv').addEventListener('click', async ()=>{
@@ -1655,9 +1758,6 @@ function renderMiniPlayer(){
 state.music.el.addEventListener('play',renderMiniPlayer);
 state.music.el.addEventListener('pause',renderMiniPlayer);
 
-/* ================================================================
-   PWA-ish: dynamic manifest so "add to home screen" looks like an app
-   ================================================================ */
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
 }
@@ -1669,5 +1769,4 @@ renderMusicList(); renderMiniPlayer();
 })();
 </script>
 
-</body>
 </html>
