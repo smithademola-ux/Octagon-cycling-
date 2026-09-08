@@ -1489,7 +1489,8 @@ const sensors = {
   hr:{device:null, bpm:null, connected:false},
 };
 
-const live = { power:null, cadence:null, speed:null, hr:null, powerHistory:[], cadenceHistory:[], hrHistory:[] };
+const live = { power:null, cadence:null, speed:null, hr:null, powerHistory:[], cadenceHistory:[], hrHistory:[],
+  powerTs:0, cadenceTs:0, hrTs:0 }; // last time each value was actually updated by a BLE notification - used to detect a stalled sensor (see checkStaleLiveData)
 
 function bleSupported(){ return !!navigator.bluetooth; }
 
@@ -1580,7 +1581,7 @@ function parseHR(dv){
   const flags=dv.getUint8(0);
   const is16=(flags & 0x1)!==0;
   const bpm = is16 ? dv.getUint16(1,true) : dv.getUint8(1);
-  live.hr=bpm; sensors.hr.bpm=bpm;
+  live.hr=bpm; live.hrTs=Date.now(); sensors.hr.bpm=bpm;
   pushHist(live.hrHistory,bpm);
   updateLiveUI();
 }
@@ -1590,7 +1591,7 @@ function parsePowerMeasurement(dv){
     const flags=dv.getUint16(0,true);
     let off=2;
     const power=dv.getInt16(off,true); off+=2;
-    live.power=power; pushHist(live.powerHistory,power);
+    live.power=power; live.powerTs=Date.now(); pushHist(live.powerHistory,power);
     if(flags & 0x1){ off+=1; } // pedal power balance
     if(flags & 0x4){ off+=2; } // accumulated torque
     if(flags & 0x10){ // wheel revolution data
@@ -1613,7 +1614,7 @@ function cadenceFromCrank(revs,time,src){
   if(prev){
     let dt=time-prev.time; if(dt<0) dt+=65536; dt/=1024;
     let dr=revs-prev.revs; if(dr<0) dr+=65536;
-    if(dt>0.1){ const cad=Math.round((dr/dt)*60); if(cad<220){ live.cadence=cad; pushHist(live.cadenceHistory,cad); } }
+    if(dt>0.1){ const cad=Math.round((dr/dt)*60); if(cad<220){ live.cadence=cad; live.cadenceTs=Date.now(); pushHist(live.cadenceHistory,cad); } }
   }
 }
 let wheelState={csc:null};
@@ -1652,14 +1653,14 @@ function parseIndoorBikeData(dv){
     const moreDataAbsentFlag = flags & 0x1; // if 0, instantaneous speed present
     if(!moreDataAbsentFlag){ const v=dv.getUint16(off,true); off+=2; live.speed=v/100; }
     if(flags & 0x2){ off+=2; } // avg speed - skip
-    if(flags & 0x4){ const v=dv.getUint16(off,true); off+=2; live.cadence=Math.round(v/2); }
+    if(flags & 0x4){ const v=dv.getUint16(off,true); off+=2; live.cadence=Math.round(v/2); live.cadenceTs=Date.now(); }
     if(flags & 0x8){ off+=2; } // avg cadence - skip
     if(flags & 0x10){ off+=3; } // total distance (uint24)
     if(flags & 0x20){ off+=2; } // resistance level
-    if(flags & 0x40){ if(off+2<=dv.byteLength){ live.power=dv.getInt16(off,true); off+=2; } }
+    if(flags & 0x40){ if(off+2<=dv.byteLength){ live.power=dv.getInt16(off,true); off+=2; live.powerTs=Date.now(); } }
     if(flags & 0x80){ off+=2; } // avg power - skip
     if(flags & 0x100){ off+=5; } // expended energy (3 fields)
-    if(flags & 0x200){ if(off+1<=dv.byteLength){ live.hr=dv.getUint8(off); off+=1; } }
+    if(flags & 0x200){ if(off+1<=dv.byteLength){ live.hr=dv.getUint8(off); off+=1; live.hrTs=Date.now(); } }
     pushHist(live.powerHistory,live.power); pushHist(live.cadenceHistory,live.cadence);
     if(live.hr!=null) pushHist(live.hrHistory,live.hr);
     updateLiveUI();
@@ -1692,6 +1693,28 @@ function updateLiveUI(){
   $('in-cad').innerHTML = (live.cadence!=null?Math.round(live.cadence):'–')+'<span class="stat-unit">rpm</span>';
   $('in-hr').innerHTML = (live.hr!=null?Math.round(live.hr):'–')+'<span class="stat-unit">ppm</span>';
   $('in-speed').innerHTML = (live.speed!=null?live.speed.toFixed(1):'–')+'<span class="stat-unit">km/h</span>';
+}
+
+/* Some sources (smartwatches broadcasting HR, some trainers) stop sending notifications after
+   the first one or two without ever formally disconnecting the BLE link, which used to leave a
+   frozen, misleadingly-live-looking number on screen (and in the recorded session) indefinitely.
+   Clear a value back to "–" if nothing new has arrived for a while, and say so once in the
+   diagnostics panel so it's clear it's a signal problem rather than the app losing the reading. */
+const STALE_MS=8000;
+const staleWarned={power:false,cadence:false,hr:false};
+function checkStaleLiveData(){
+  const now=Date.now();
+  let changed=false;
+  [['hr','FC'],['power','Potencia'],['cadence','Cadencia']].forEach(([field,label])=>{
+    const ts=live[field+'Ts'];
+    if(live[field]!=null && ts && (now-ts)>STALE_MS){
+      live[field]=null; changed=true;
+      if(!staleWarned[field]){ logDiag(label+': sin señal desde hace más de 8s (revisa la conexión del sensor)'); staleWarned[field]=true; }
+    } else if(ts && (now-ts)<=STALE_MS){
+      staleWarned[field]=false; // fresh data came back in, allow a fresh warning if it drops again later
+    }
+  });
+  if(changed) updateLiveUI();
 }
 
 /* ================================================================
@@ -1887,6 +1910,7 @@ async function applyCurrentTarget(){
 
 function indoorTick(){
   if(!indoorRide.running || indoorRide.paused) return;
+  checkStaleLiveData();
   const elapsed=inElapsed();
   const now=Date.now();
   const dtSec = indoorRide.lastTickTs ? Math.min((now-indoorRide.lastTickTs)/1000, 3) : 1;
@@ -2252,6 +2276,16 @@ function renderMiniPlayer(){
 state.music.el.addEventListener('play',renderMiniPlayer);
 state.music.el.addEventListener('pause',renderMiniPlayer);
 
+/* ================================================================
+   PWA-ish: dynamic manifest so "add to home screen" looks like an app
+   ================================================================ */
+try{
+  const manifest={name:'Octagon Cycling',short_name:'Octagon',display:'standalone',start_url:location.href,theme_color:'#14171a',background_color:'#14171a'};
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const link=document.createElement('link'); link.rel='manifest'; link.href=URL.createObjectURL(blob);
+  document.head.appendChild(link);
+}catch(e){}
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
 }
@@ -2263,4 +2297,5 @@ renderMusicList(); renderMiniPlayer();
 })();
 </script>
 
+</body>
 </html>
