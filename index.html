@@ -958,8 +958,19 @@ async function initStorage(){
 
   let skippedAccount=false;
   try{ skippedAccount = localStorage.getItem(LS_SKIP_ACCOUNT_KEY)==='1'; }catch(e){}
+  // Load any existing local profiles into state BEFORE the account gate can be shown,
+  // so that if the user creates/links an account from that screen, signUpWithEmail /
+  // signInWithEmail see the real local history and correctly migrate it to the cloud
+  // instead of migrating an empty state.profiles.
+  if(!state.profiles.length){
+    const stored = lsLoadProfiles();
+    if(stored && stored.profiles && stored.profiles.length){
+      state.profiles = stored.profiles;
+      if(stored.activeProfileId) state.activeProfileId = stored.activeProfileId;
+    }
+  }
   if(!user && fbAuth && !skippedAccount){
-    // first run and no decision made yet: ask before touching any local profile data
+    // first run and no decision made yet: ask before touching any cloud data
     showProfileGate('account', {mandatory:true});
     return;
   }
