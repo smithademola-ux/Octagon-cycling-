@@ -11,6 +11,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase (cuenta + sincronización). Si no hay red o el navegador las bloquea, la app
+     sigue funcionando en modo solo-local exactamente igual que antes. -->
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
 <style>
 /* ============ tokens ============ */
 :root{
@@ -182,7 +187,7 @@ button{font-family:inherit;}
 .btn-row .btn{flex:1;}
 .btn[disabled]{opacity:.45;cursor:not-allowed;}
 
-input[type=text],input[type=number],select,textarea{
+input[type=text],input[type=number],input[type=email],input[type=password],select,textarea{
   width:100%;padding:11px 12px;border-radius:var(--radius-s);border:1px solid var(--border);
   background:var(--surface);color:var(--text);font-family:inherit;font-size:14.5px;
 }
@@ -285,6 +290,10 @@ a.linklike{color:var(--accent);font-weight:700;text-decoration:none;cursor:point
 [hidden]{display:none!important;} /* guards against component classes (.btn, .icon-btn, etc.) that set their own display and would otherwise win over a bare [hidden] attribute */
 .filepick-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 label.btn{display:inline-flex;} /* so a <label class="btn"> used as a file-picker trigger looks and behaves exactly like a real button */
+#in-video-wrap:fullscreen{width:100%;height:100%;display:flex;align-items:center;background:#000;}
+#in-video-wrap:-webkit-full-screen{width:100%;height:100%;display:flex;align-items:center;background:#000;}
+#in-video-wrap:fullscreen #in-video-preview,#in-video-wrap:-webkit-full-screen #in-video-preview{aspect-ratio:unset;height:100%;width:100%;object-fit:contain;}
+#in-video-wrap:fullscreen .fs-stats,#in-video-wrap:-webkit-full-screen .fs-stats{display:flex!important;}
 
 /* ============ profile gate (family member switcher) ============ */
 .profilegate{
@@ -409,6 +418,24 @@ label.btn{display:inline-flex;} /* so a <label class="btn"> used as a file-picke
         <div class="stat"><div class="stat-label">Desnivel +</div><div class="stat-value" id="out-elev">0<span class="stat-unit">m</span></div></div>
       </div>
 
+      <div class="section-title">Ruta</div>
+      <div class="card" id="out-route-picker">
+        <div class="row">
+          <div>
+            <div style="font-weight:700;" id="out-route-name">Sin ruta (libre)</div>
+            <div class="small muted" id="out-route-sub">Elige una ruta guardada, importa un GPX o sigue un puerto conocido</div>
+          </div>
+          <button class="btn btn-sm" id="btn-pick-route">Elegir</button>
+        </div>
+        <div id="out-route-progress-wrap" style="display:none;margin-top:12px;">
+          <canvas id="out-elev-canvas" height="70"></canvas>
+          <div class="row" style="margin-top:8px;">
+            <div class="small muted">Progreso: <b id="out-route-progress-pct">0%</b></div>
+            <div class="small mono" id="out-route-vsbest">–</div>
+          </div>
+        </div>
+      </div>
+
       <div class="section-title">Recorrido</div>
       <canvas id="out-canvas" height="220"></canvas>
 
@@ -438,6 +465,33 @@ label.btn{display:inline-flex;} /* so a <label class="btn"> used as a file-picke
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20.8 8.6c0 5-8.8 10-8.8 10s-8.8-5-8.8-10a4.6 4.6 0 0 1 8.8-1.8A4.6 4.6 0 0 1 20.8 8.6z"/></svg></div>
           <div class="info"><div class="name">Pulsómetro</div><div class="sub" id="hr-sub">No conectado</div></div>
           <button class="btn btn-sm" id="btn-connect-hr">Conectar</button>
+        </div>
+      </div>
+
+      <div class="section-title">Vídeo</div>
+      <div class="card" style="padding:6px 14px;">
+        <div class="row">
+          <div>
+            <div style="font-weight:700;">Grabar mientras entrenas</div>
+            <div class="small muted">Vídeo de la cámara arriba, gráficos abajo. Se guarda un clip al terminar.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="in-video-toggle"><span class="track"></span></label>
+        </div>
+      </div>
+      <div id="in-video-wrap" style="display:none;position:relative;margin-top:10px;border-radius:var(--radius-m);overflow:hidden;background:#000;">
+        <video id="in-video-preview" autoplay muted playsinline style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;"></video>
+        <div id="in-video-recdot-wrap" style="display:none;position:absolute;top:10px;left:10px;align-items:center;gap:6px;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:99px;">
+          <span id="in-video-recdot" style="width:8px;height:8px;border-radius:50%;background:#ff4d4d;"></span>
+          <span id="in-video-rectime" style="color:#fff;font-size:11px;font-weight:700;">00:00</span>
+        </div>
+        <button class="icon-btn" id="btn-video-fullscreen" style="position:absolute;top:8px;right:8px;width:34px;height:34px;background:rgba(0,0,0,.55);border:none;color:#fff;" aria-label="Pantalla completa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3"/></svg>
+        </button>
+        <div class="fs-stats" style="display:none;position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.75));gap:18px;justify-content:space-around;">
+          <div style="text-align:center;color:#fff;"><div style="font-size:11px;opacity:.8;font-weight:700;">POTENCIA</div><div class="mono" style="font-size:22px;font-weight:700;" id="fv-power">–</div></div>
+          <div style="text-align:center;color:#fff;"><div style="font-size:11px;opacity:.8;font-weight:700;">CADENCIA</div><div class="mono" style="font-size:22px;font-weight:700;" id="fv-cad">–</div></div>
+          <div style="text-align:center;color:#fff;"><div style="font-size:11px;opacity:.8;font-weight:700;">FC</div><div class="mono" style="font-size:22px;font-weight:700;" id="fv-hr">–</div></div>
+          <div style="text-align:center;color:#fff;"><div style="font-size:11px;opacity:.8;font-weight:700;">TIEMPO</div><div class="mono" style="font-size:22px;font-weight:700;" id="fv-time">00:00</div></div>
         </div>
       </div>
 
@@ -575,6 +629,10 @@ label.btn{display:inline-flex;} /* so a <label class="btn"> used as a file-picke
     <div id="music-list" style="margin-top:10px;"></div>
 
     <div class="divider"></div>
+    <div class="section-title" style="margin-top:0;">Cuenta y sincronización</div>
+    <div id="acct-status"></div>
+
+    <div class="divider"></div>
     <div class="section-title" style="margin-top:0;">Diagnóstico</div>
     <div class="diag" id="settings-diag"></div>
 
@@ -608,6 +666,46 @@ label.btn{display:inline-flex;} /* so a <label class="btn"> used as a file-picke
   <div class="panel-body">
     <button class="btn" id="pick-free" style="margin-bottom:14px;">Modo libre (sin plan)</button>
     <div id="picker-list" class="stack"></div>
+  </div>
+</div>
+
+<!-- route picker sheet -->
+<div class="overlay" id="route-picker-overlay"></div>
+<div class="panel" id="route-picker-panel">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Elegir ruta</h3>
+    <button class="icon-btn" id="btn-close-route-picker"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <button class="btn" id="rp-pick-free" style="margin-bottom:14px;">Sin ruta (libre)</button>
+
+    <div class="section-title" style="margin-top:0;">Tus rutas</div>
+    <div id="rp-own-list" class="stack"></div>
+    <input type="file" id="gpx-file-input" class="filepick-input" accept=".gpx,application/gpx+xml,application/xml,text/xml">
+    <label class="btn btn-sm" for="gpx-file-input" style="margin-top:10px;">Importar GPX</label>
+
+    <div class="divider"></div>
+    <div class="row" style="margin-top:0;">
+      <div class="section-title" style="margin:0;">Rutas conocidas</div>
+      <button class="btn btn-sm" id="btn-open-map">Ver mapa</button>
+    </div>
+    <div id="rp-preset-list" class="stack" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- interactive map (known routes) -->
+<div class="overlay" id="map-overlay"></div>
+<div class="panel" id="map-panel" style="width:min(480px,100vw);">
+  <div class="panel-head">
+    <h3 style="font-size:16px;">Rutas conocidas</h3>
+    <button class="icon-btn" id="btn-close-map"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
+  </div>
+  <div class="panel-body" style="padding:0;display:flex;flex-direction:column;">
+    <div id="route-map" style="width:100%;height:280px;background:var(--surface-2);flex-shrink:0;"></div>
+    <div style="padding:16px 18px 40px;">
+      <div class="small muted" style="margin-bottom:12px;">Toca un puerto en el mapa o en la lista para verlo y seleccionarlo.</div>
+      <div id="map-preset-list" class="stack"></div>
+    </div>
   </div>
 </div>
 
@@ -666,6 +764,18 @@ function haversineM(lat1,lon1,lat2,lon2){
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+function routeGeomStats(points){
+  // cumulative distance (m) and total elevation gain (m) along an ordered list of {lat,lon,ele}
+  let dist=0, gain=0; const cum=[0];
+  for(let i=1;i<points.length;i++){
+    dist += haversineM(points[i-1].lat,points[i-1].lon,points[i].lat,points[i].lon);
+    cum.push(dist);
+    if(typeof points[i].ele==='number' && typeof points[i-1].ele==='number'){
+      const de=points[i].ele-points[i-1].ele; if(de>0) gain+=de;
+    }
+  }
+  return {distanceKm:dist/1000, elevGainM:Math.round(gain), cum};
+}
 function powerZone(pct){ // pct of FTP
   if(pct<60)return 1; if(pct<76)return 2; if(pct<90)return 3; if(pct<105)return 4; return 5;
 }
@@ -676,6 +786,7 @@ const state={
   settings:{ftp:200,hrMax:185,weightKg:75,wheelCircMm:2105},
   workouts:[], // custom, from db/local - belongs to the active profile
   sessions:[], // from db/local - belongs to the active profile
+  routes:[], // saved/imported outdoor routes - belongs to the active profile
   db:null, downloads:null, dbReady:false,
   screen:'dashboard',
   music:{tracks:[],idx:-1,el:new Audio()},
@@ -685,6 +796,101 @@ const state={
   pendingMigration:null, // legacy single-user data offered to the first profile created
 };
 const PROFILE_COLORS=['#c8481f','#2f6f4e','#2f5f9e','#9e6b2f','#7a3f9e','#2f8f9e','#9e2f5e','#5e7a2f'];
+
+/* ================= cloud account (Firebase Auth + Firestore) =================
+   Lets the same user sync their profiles/workouts/sessions/routes between the
+   web version and the installed app. Firebase is entirely optional: if the
+   scripts didn't load (no network, or a sandboxed preview blocking them) the
+   app keeps working exactly as before, fully local on this device. */
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyDYNIpBMHR9wWiXh9zvF6JWubs2fB42Mks",
+  authDomain:"octagon-cycling.firebaseapp.com",
+  projectId:"octagon-cycling",
+  storageBucket:"octagon-cycling.firebasestorage.app",
+  messagingSenderId:"724262041740",
+  appId:"1:724262041740:web:beb741c7cf4147a8a523a9",
+};
+const LS_SKIP_ACCOUNT_KEY='octagon_skip_account_v1';
+let fbAuth=null, fbStore=null, authUser=null;
+function initFirebase(){
+  try{
+    if(window.firebase && firebase.initializeApp){
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth=firebase.auth();
+      fbStore=firebase.firestore();
+      fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+    }
+  }catch(e){ fbAuth=null; fbStore=null; }
+}
+function waitForInitialAuth(){
+  return new Promise(resolve=>{
+    if(!fbAuth){ resolve(null); return; }
+    const unsub=fbAuth.onAuthStateChanged(user=>{ unsub(); resolve(user); }, ()=>resolve(null));
+  });
+}
+function firestoreDbFor(uid){
+  return { collection(name){ return fbStore.collection('users').doc(uid).collection(name); } };
+}
+function accountErrorEs(err){
+  const map={
+    'auth/invalid-email':'Ese correo no es válido.',
+    'auth/missing-password':'Escribe una contraseña.',
+    'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
+    'auth/email-already-in-use':'Ya existe una cuenta con ese correo. Prueba a iniciar sesión.',
+    'auth/user-not-found':'No existe ninguna cuenta con ese correo.',
+    'auth/wrong-password':'Contraseña incorrecta.',
+    'auth/invalid-credential':'Correo o contraseña incorrectos.',
+    'auth/too-many-requests':'Demasiados intentos. Espera un momento e inténtalo de nuevo.',
+    'auth/network-request-failed':'No hay conexión a internet.',
+  };
+  return (err && map[err.code]) || 'No se pudo completar la operación. Inténtalo de nuevo.';
+}
+async function pushLocalProfilesToCloud(uid){
+  const db=firestoreDbFor(uid);
+  for(const p of state.profiles){
+    try{ await db.collection('profiles').doc(p.id).set(profileToDoc(p)); }catch(e){}
+    for(const w of (p.workouts||[])){ try{ await db.collection('workouts').doc(w.id).set(Object.assign({profileId:p.id},w)); }catch(e){} }
+    for(const s of (p.sessions||[])){ try{ await db.collection('sessions').doc(s.id).set(Object.assign({profileId:p.id},s)); }catch(e){} }
+    for(const r of (p.routes||[])){ try{ await db.collection('routes').doc(r.id).set(Object.assign({profileId:p.id},r)); }catch(e){} }
+  }
+}
+async function signUpWithEmail(email,pw){
+  const cred=await fbAuth.createUserWithEmailAndPassword(email,pw);
+  if(state.profiles.length) await pushLocalProfilesToCloud(cred.user.uid);
+  try{ localStorage.removeItem(LS_SKIP_ACCOUNT_KEY); }catch(e){}
+  location.reload();
+}
+async function signInWithEmail(email,pw){
+  const cred=await fbAuth.signInWithEmailAndPassword(email,pw);
+  try{
+    const qs=await firestoreDbFor(cred.user.uid).collection('profiles').get();
+    if(!qs.docs.length && state.profiles.length) await pushLocalProfilesToCloud(cred.user.uid);
+  }catch(e){}
+  try{ localStorage.removeItem(LS_SKIP_ACCOUNT_KEY); }catch(e){}
+  location.reload();
+}
+async function signOutAccount(){
+  try{ await fbAuth.signOut(); }catch(e){}
+  location.reload();
+}
+function skipAccountForNow(){
+  try{ localStorage.setItem(LS_SKIP_ACCOUNT_KEY,'1'); }catch(e){}
+  finishProfilesInit();
+}
+function updateAccountUI(){
+  const wrap=$('acct-status'); if(!wrap) return;
+  if(authUser){
+    wrap.innerHTML=`<div class="small muted" style="margin-bottom:10px;">Sesión iniciada como <b>${authUser.email}</b>. Tus perfiles, entrenos y rutas se sincronizan entre la web y la app instalada.</div><button class="btn btn-sm btn-danger" id="btn-account-logout">Cerrar sesión</button>`;
+    const b=$('btn-account-logout');
+    if(b) b.addEventListener('click',()=>{ if(confirm('¿Cerrar sesión de tu cuenta Octagon Cycling en este dispositivo?')) signOutAccount(); });
+  } else if(fbAuth){
+    wrap.innerHTML=`<div class="small muted" style="margin-bottom:10px;">Aún no has vinculado una cuenta: tus datos solo se guardan en este dispositivo.</div><button class="btn btn-sm btn-primary" id="btn-account-link">Vincular cuenta para sincronizar</button>`;
+    const b=$('btn-account-link');
+    if(b) b.addEventListener('click',()=>{ closePanel('settings'); showProfileGate('account',{mandatory:false}); });
+  } else {
+    wrap.innerHTML=`<div class="small muted">La sincronización por cuenta no está disponible ahora mismo (sin conexión).</div>`;
+  }
+}
 
 /* ================= persistence layer =================
    Everything (settings/workouts/sessions) belongs to a profile now. state.settings/
@@ -706,7 +912,7 @@ function lsSaveProfiles(){
 function activeProfile(){ return state.profiles.find(p=>p.id===state.activeProfileId) || null; }
 function syncActiveProfile(){
   const p=activeProfile();
-  if(p){ p.settings=state.settings; p.workouts=state.workouts; p.sessions=state.sessions; }
+  if(p){ p.settings=state.settings; p.workouts=state.workouts; p.sessions=state.sessions; p.routes=state.routes; }
   return p;
 }
 function profileToDoc(p){
@@ -718,20 +924,49 @@ function profileFromDoc(id,data){
     id, name:data.name||'Ciclista', color:data.color||PROFILE_COLORS[0], pin:data.pin||'0000',
     photo:data.photo||null, isAdmin:!!data.isAdmin, restricted:!!data.restricted,
     settings:{ftp:data.ftp||200,hrMax:data.hrMax||185,weightKg:data.weightKg||75,wheelCircMm:data.wheelCircMm||2105},
-    workouts:[], sessions:[],
+    workouts:[], sessions:[], routes:[],
   };
 }
 
 async function initStorage(){
+  // Inside the Claude Artifact preview, window.claude exposes its own built-in
+  // per-artifact database - use it directly with no login needed, exactly as before.
+  let claudeDb=null;
   try{
     if(window.claude && window.claude.use){
-      state.db = await window.claude.use('db');
+      claudeDb = await window.claude.use('db');
       state.downloads = await window.claude.use('downloads');
     }
-  }catch(e){state.db=null;}
+  }catch(e){}
+  if(claudeDb){
+    state.db = claudeDb;
+    state.dbReady = true;
+    updateStorageStatusUI();
+    await finishProfilesInit();
+    return;
+  }
+
+  // Standalone HTML / GitHub Pages / installed app: sync via a real account instead.
+  initFirebase();
+  const user = await waitForInitialAuth();
+  authUser = user;
+  state.db = user ? firestoreDbFor(user.uid) : null;
   state.dbReady = !!state.db;
   updateStorageStatusUI();
+  updateAccountUI();
+  logDiag('Cuenta: '+(state.dbReady ? ('sesión iniciada como '+user.email+', sincronizando.') : 'sin cuenta vinculada, los datos se guardan solo en este dispositivo.'));
 
+  let skippedAccount=false;
+  try{ skippedAccount = localStorage.getItem(LS_SKIP_ACCOUNT_KEY)==='1'; }catch(e){}
+  if(!user && fbAuth && !skippedAccount){
+    // first run and no decision made yet: ask before touching any local profile data
+    showProfileGate('account', {mandatory:true});
+    return;
+  }
+  await finishProfilesInit();
+}
+
+async function finishProfilesInit(){
   if(state.db){
     try{
       const qs = await state.db.collection('profiles').get();
@@ -773,17 +1008,22 @@ async function loadProfileRemoteData(p){
     const qs = await state.db.collection('sessions').orderBy('startedAt','desc').limit(200).get();
     p.sessions = qs.docs.filter(d=>d.data().profileId===p.id).map(d=>Object.assign({id:d.id},d.data()));
   }catch(e){}
+  try{
+    const qr = await state.db.collection('routes').orderBy('createdAt','desc').get();
+    p.routes = qr.docs.filter(d=>d.data().profileId===p.id).map(d=>Object.assign({id:d.id},d.data()));
+  }catch(e){}
 }
 
 async function activateProfile(id){
   const p = state.profiles.find(x=>x.id===id); if(!p) return;
   state.activeProfileId = id;
   await loadProfileRemoteData(p);
-  state.settings = p.settings; state.workouts = p.workouts; state.sessions = p.sessions;
+  state.settings = p.settings; state.workouts = p.workouts; state.sessions = p.sessions; state.routes = p.routes||[];
   lsSaveProfiles();
   hideProfileGate();
   renderSettingsForm(); renderDashboard(); renderWorkoutsScreen(); renderHistoryScreen();
   renderWorkoutPickerName(); renderMusicList(); renderMiniPlayer(); updateProfileBadge(); updateAdminVisibility();
+  renderRoutePickerName();
 }
 
 function updateAdminVisibility(){
@@ -817,8 +1057,8 @@ function updateStorageStatusUI(){
   const el=$('storage-status');
   if(!el)return;
   el.textContent = state.dbReady
-    ? 'Tus datos se guardan de forma segura en tu cuenta de Claude y estarán disponibles la próxima vez que abras Octagon Cycling.'
-    : 'Ahora mismo Octagon Cycling solo puede guardar tus datos en este navegador (no hay sincronización).';
+    ? 'Tus datos se guardan en tu cuenta y estarán disponibles la próxima vez que abras Octagon Cycling, tanto en la web como en la app instalada.'
+    : 'Ahora mismo Octagon Cycling solo puede guardar tus datos en este dispositivo (sin sincronización).';
 }
 
 async function saveSettings(){
@@ -845,9 +1085,23 @@ async function saveSession(s){
   state.sessions=list; syncActiveProfile(); lsSaveProfiles();
   renderDashboard(); renderHistoryScreen();
 }
+async function saveRoute(r){
+  const p=activeProfile(); if(!p) return;
+  r.id = r.id || uid();
+  if(state.db){ try{ await state.db.collection('routes').doc(r.id).set(Object.assign({profileId:p.id},r)); }catch(e){} }
+  const list=state.routes.filter(x=>x.id!==r.id); list.unshift(r);
+  state.routes=list; syncActiveProfile(); lsSaveProfiles();
+  return r;
+}
+async function deleteRoute(id){
+  const p=activeProfile(); if(!p) return;
+  if(state.db){ try{ await state.db.collection('routes').doc(id).delete(); }catch(e){} }
+  const list=state.routes.filter(x=>x.id!==id);
+  state.routes=list; syncActiveProfile(); lsSaveProfiles();
+}
 async function clearAllData(){
   const p=activeProfile(); if(!p) return;
-  state.workouts=[]; state.sessions=[];
+  state.workouts=[]; state.sessions=[]; state.routes=[];
   syncActiveProfile(); lsSaveProfiles();
   if(state.db){
     try{
@@ -855,9 +1109,11 @@ async function clearAllData(){
       for(const d of qs.docs){ if(d.data().profileId===p.id) await state.db.collection('sessions').doc(d.id).delete(); }
       const qw = await state.db.collection('workouts').limit(500).get();
       for(const d of qw.docs){ if(d.data().profileId===p.id) await state.db.collection('workouts').doc(d.id).delete(); }
+      const qr = await state.db.collection('routes').limit(500).get();
+      for(const d of qr.docs){ if(d.data().profileId===p.id) await state.db.collection('routes').doc(d.id).delete(); }
     }catch(e){}
   }
-  renderDashboard(); renderHistoryScreen(); renderWorkoutsScreen();
+  renderDashboard(); renderHistoryScreen(); renderWorkoutsScreen(); renderRoutePickerName();
   toast('Datos borrados');
 }
 
@@ -868,7 +1124,7 @@ function createProfile({name,color,pin,photo}){
     id:'pf-'+uid(), name, color, pin, photo:photo||null,
     isAdmin:isFirst, restricted:false,
     settings:{ftp:200,hrMax:185,weightKg:75,wheelCircMm:2105},
-    workouts:[], sessions:[],
+    workouts:[], sessions:[], routes:[],
   };
   if(state.pendingMigration){
     const leg=state.pendingMigration;
@@ -895,6 +1151,8 @@ async function deleteProfileById(id){
       for(const d of qs.docs){ if(d.data().profileId===id) await state.db.collection('sessions').doc(d.id).delete(); }
       const qw = await state.db.collection('workouts').limit(500).get();
       for(const d of qw.docs){ if(d.data().profileId===id) await state.db.collection('workouts').doc(d.id).delete(); }
+      const qr = await state.db.collection('routes').limit(500).get();
+      for(const d of qr.docs){ if(d.data().profileId===id) await state.db.collection('routes').doc(d.id).delete(); }
     }catch(e){}
   }
   if(wasActive){
@@ -990,7 +1248,7 @@ async function renderAdminPanel(){
 }
 
 /* ---- profile gate state machine: grid (pick) -> pin (unlock) -> create (new member) ---- */
-const pgState={mode:'grid', targetId:null, pinBuffer:'', createStep:{name:'',color:PROFILE_COLORS[0],photo:null}, editStep:{name:'',color:PROFILE_COLORS[0],photo:null}};
+const pgState={mode:'grid', targetId:null, pinBuffer:'', acctTab:'login', createStep:{name:'',color:PROFILE_COLORS[0],photo:null}, editStep:{name:'',color:PROFILE_COLORS[0],photo:null}};
 function showProfileGate(mode,opts){
   pgState.mode=mode; pgState.pinBuffer='';
   const gate=$('profile-gate'); gate.hidden=false;
@@ -1135,6 +1393,39 @@ function renderProfileGate(){
       toast('Perfil actualizado');
     });
     $('pg-back').addEventListener('click',()=>hideProfileGate());
+  } else if(pgState.mode==='account'){
+    const tab=pgState.acctTab||'login';
+    body.innerHTML = `
+      <div class="pg-title">${tab==='login'?'Inicia sesión':'Crea tu cuenta'}</div>
+      <div class="pg-sub">${tab==='login'?'Entra con tu correo para sincronizar tus perfiles y entrenos entre la web y la app.':'Crea una cuenta para que tus perfiles, entrenos y rutas se sincronicen entre la web y la app instalada.'}</div>
+      <div class="field"><label>Correo electrónico</label><input type="email" id="acct-email" autocomplete="email" placeholder="tucorreo@ejemplo.com"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="acct-pw" autocomplete="${tab==='login'?'current-password':'new-password'}" placeholder="Mínimo 6 caracteres"></div>
+      <div class="small" id="acct-error" style="color:var(--danger);min-height:18px;margin-bottom:8px;"></div>
+      <button class="btn btn-primary" id="acct-submit">${tab==='login'?'Iniciar sesión':'Crear cuenta'}</button>
+      <button class="btn btn-sm btn-ghost" id="acct-switch" style="margin-top:10px;">${tab==='login'?'¿No tienes cuenta? Crear una':'¿Ya tienes cuenta? Iniciar sesión'}</button>
+      ${tab==='login'?'<button class="btn btn-sm btn-ghost" id="acct-forgot" style="margin-top:2px;">¿Olvidaste tu contraseña?</button>':''}
+      <button class="btn btn-sm" id="acct-skip" style="margin-top:18px;">Continuar sin cuenta (solo en este dispositivo)</button>`;
+    $('acct-switch').addEventListener('click',()=>{ pgState.acctTab = tab==='login'?'signup':'login'; renderProfileGate(); });
+    $('acct-skip').addEventListener('click',()=>{ hideProfileGate(); skipAccountForNow(); });
+    if($('acct-forgot')) $('acct-forgot').addEventListener('click', async ()=>{
+      const email=($('acct-email').value||'').trim();
+      if(!email){ $('acct-error').textContent='Escribe tu correo primero.'; return; }
+      try{ await fbAuth.sendPasswordResetEmail(email); toast('Te hemos enviado un correo para restablecer tu contraseña'); }
+      catch(e){ $('acct-error').textContent=accountErrorEs(e); }
+    });
+    $('acct-submit').addEventListener('click', async ()=>{
+      const email=($('acct-email').value||'').trim();
+      const pw=$('acct-pw').value||'';
+      if(!email||!pw){ $('acct-error').textContent='Rellena correo y contraseña.'; return; }
+      const btn=$('acct-submit'); btn.disabled=true; btn.textContent='Un momento…';
+      try{
+        if(tab==='login') await signInWithEmail(email,pw);
+        else await signUpWithEmail(email,pw);
+      }catch(e){
+        $('acct-error').textContent=accountErrorEs(e);
+        btn.disabled=false; btn.textContent=tab==='login'?'Iniciar sesión':'Crear cuenta';
+      }
+    });
   }
 }
 function renderPinDots(){
@@ -1198,7 +1489,7 @@ qsa('.navbtn').forEach(b=>b.addEventListener('click',()=>goto(b.dataset.screen))
 
 function openPanel(id){ $(id+'-overlay').classList.add('open'); $(id+'-panel').classList.add('open'); }
 function closePanel(id){ $(id+'-overlay').classList.remove('open'); $(id+'-panel').classList.remove('open'); }
-$('btn-open-settings').addEventListener('click',()=>{openPanel('settings');renderDiagPanel();});
+$('btn-open-settings').addEventListener('click',()=>{openPanel('settings');renderDiagPanel();updateAccountUI();});
 $('btn-close-settings').addEventListener('click',()=>closePanel('settings'));
 $('settings-overlay').addEventListener('click',()=>closePanel('settings'));
 $('btn-close-picker').addEventListener('click',()=>closePanel('picker'));
@@ -1319,6 +1610,7 @@ const outdoor = {
   lastPos:null, track:[], lastRecordTs:0,
   maxSpeedKmh:0, speedSamples:[],
   timerId:null,
+  selectedRoute:null, routeProgressIdx:0, // route being followed this ride (see "rutas" feature)
 };
 
 function outElapsed(){
@@ -1353,9 +1645,10 @@ function outdoorGeoHandler(pos){
   outdoor.lastPos={lat,lon,t:now};
 
   if(now - outdoor.lastRecordTs > 5000){
-    outdoor.track.push({lat,lon,t:now});
+    outdoor.track.push({lat,lon,t:now,ele:(typeof altitude==='number'?Math.round(altitude):null)});
     outdoor.lastRecordTs=now;
     drawOutdoorTrack();
+    updateRouteProgress();
   }
 }
 function outdoorGeoError(err){
@@ -1369,13 +1662,16 @@ function drawOutdoorTrack(){
   ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
   ctx.clearRect(0,0,w,220);
   const pts=outdoor.track;
-  if(pts.length<2){
+  const route=outdoor.selectedRoute;
+  if(pts.length<2 && !route){
     ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
     ctx.font='13px Manrope'; ctx.textAlign='center';
     ctx.fillText('El recorrido aparecerá aquí en cuanto empieces a moverte',w/2,112);
     return;
   }
-  const lats=pts.map(p=>p.lat), lons=pts.map(p=>p.lon);
+  // fit the view to whichever points exist: the target route (if any) plus whatever has been recorded so far
+  const allPts = (route?route.points:[]).concat(pts);
+  const lats=allPts.map(p=>p.lat), lons=allPts.map(p=>p.lon);
   const minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
   const pad=24;
   const latSpan=Math.max(maxLat-minLat,0.0004), lonSpan=Math.max(maxLon-minLon,0.0004);
@@ -1383,23 +1679,26 @@ function drawOutdoorTrack(){
   const s=Math.min(sx,sy);
   const cx=w/2, cy=110;
   const midLat=(minLat+maxLat)/2, midLon=(minLon+maxLon)/2;
-  ctx.beginPath();
-  pts.forEach((p,i)=>{
-    const x=cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180);
-    const y=cy-(p.lat-midLat)*s;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
-  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent');
-  ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.stroke();
-  // start/end markers
-  function marker(p,color){
-    const x=cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180);
-    const y=cy-(p.lat-midLat)*s;
-    ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fillStyle=color; ctx.fill();
+  const proj=p=>({x:cx+(p.lon-midLon)*s*Math.cos(midLat*Math.PI/180), y:cy-(p.lat-midLat)*s});
+  function marker(p,color){ const {x,y}=proj(p); ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fillStyle=color; ctx.fill(); }
+  // ghost line for the route being followed, drawn first so the live track sits on top of it
+  if(route && route.points.length>1){
+    ctx.beginPath();
+    route.points.forEach((p,i)=>{ const {x,y}=proj(p); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
+    ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.setLineDash([2,6]);
+    ctx.stroke(); ctx.setLineDash([]);
+    marker(route.points[route.points.length-1],getComputedStyle(document.body).getPropertyValue('--text-muted'));
   }
-  marker(pts[0],getComputedStyle(document.body).getPropertyValue('--success'));
-  marker(pts[pts.length-1],getComputedStyle(document.body).getPropertyValue('--accent'));
+  if(pts.length>=2){
+    ctx.beginPath();
+    pts.forEach((p,i)=>{ const {x,y}=proj(p); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent');
+    ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.stroke();
+    marker(pts[0],getComputedStyle(document.body).getPropertyValue('--success'));
+    marker(pts[pts.length-1],getComputedStyle(document.body).getPropertyValue('--accent'));
+  }
 }
 
 function outdoorTick(){
@@ -1414,10 +1713,39 @@ function outdoorTick(){
   $('out-elev').innerHTML = Math.round(outdoor.elevGainM)+'<span class="stat-unit">m</span>';
 }
 
+/* Keeping the screen on is what keeps the whole ride alive: once the screen locks, the
+   browser treats the page as backgrounded and throttles setInterval-driven work like
+   indoorTick() (which is what sends ERG target-power updates) down to roughly once a
+   minute or less. Passive BLE notifications (power/cadence/HR) keep arriving because
+   they're event-driven, not timer-driven - which is exactly why sensors kept "detecting"
+   while ERG control stopped. A held Wake Lock is the fix: it stops the screen (and with
+   it the page) from ever going to sleep in the first place. The browser silently drops
+   the lock whenever the page is hidden even briefly, so it must be re-requested every
+   time the page becomes visible again while a ride is still meant to be active. */
+let wakeLockWanted=false;
 async function requestWakeLock(){
-  try{ if('wakeLock' in navigator){ outdoor.wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+  wakeLockWanted=true;
+  try{
+    if('wakeLock' in navigator){
+      outdoor.wakeLock = await navigator.wakeLock.request('screen');
+      logDiag('Pantalla: bloqueo de apagado activado para esta sesión.');
+      outdoor.wakeLock.addEventListener('release', ()=>{
+        outdoor.wakeLock=null; // so the visibilitychange handler below knows to re-request it
+        logDiag('Pantalla: el sistema liberó el bloqueo (normal si cambiaste de app o bloqueaste el móvil manualmente).');
+      });
+    } else {
+      logDiag('Pantalla: este navegador no admite mantenerla encendida automáticamente; desactiva el bloqueo de pantalla del móvil manualmente antes de empezar.');
+    }
+  }catch(e){
+    logDiag('Pantalla: no se pudo activar el bloqueo de apagado ('+(e&&e.name?e.name:e)+'). Si tu móvil tiene ahorro de batería agresivo, añade Octagon Cycling a las apps sin restricciones.');
+  }
 }
-function releaseWakeLock(){ try{ outdoor.wakeLock && outdoor.wakeLock.release(); }catch(e){} outdoor.wakeLock=null; }
+function releaseWakeLock(){ wakeLockWanted=false; try{ outdoor.wakeLock && outdoor.wakeLock.release(); }catch(e){} outdoor.wakeLock=null; }
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && wakeLockWanted && !outdoor.wakeLock){
+    requestWakeLock();
+  }
+});
 
 function renderOutControls(){
   const c=$('out-controls');
@@ -1437,12 +1765,13 @@ function renderOutControls(){
 
 function startOutdoor(){
   if(!navigator.geolocation){ toast('Este navegador no soporta GPS'); return; }
-  Object.assign(outdoor,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,distanceM:0,elevGainM:0,lastAlt:null,lastPos:null,track:[],lastRecordTs:0,maxSpeedKmh:0,speedSamples:[]});
+  Object.assign(outdoor,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,distanceM:0,elevGainM:0,lastAlt:null,lastPos:null,track:[],lastRecordTs:0,maxSpeedKmh:0,speedSamples:[],routeProgressIdx:0});
   outdoor.watchId = navigator.geolocation.watchPosition(outdoorGeoHandler,outdoorGeoError,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
   outdoor.timerId = setInterval(outdoorTick,1000);
   requestWakeLock();
   $('out-permhelp').style.display='none';
   drawOutdoorTrack();
+  if(outdoor.selectedRoute) drawElevationProfile();
   renderOutControls();
 }
 function pauseOutdoor(){ outdoor.paused=true; outdoor.pauseStart=Date.now(); releaseWakeLock(); renderOutControls(); }
@@ -1456,22 +1785,263 @@ async function stopOutdoor(){
   const avgSpeedKmh = elapsedH>0 ? (outdoor.distanceM/1000)/elapsedH : 0;
   const met = avgSpeedKmh<16?4:avgSpeedKmh<19?6:avgSpeedKmh<22?8:avgSpeedKmh<25?10:avgSpeedKmh<30?12:15;
   const calories = Math.round(met*state.settings.weightKg*elapsedH);
+  const route=outdoor.selectedRoute;
   const session={
     type:'outdoor', startedAt:new Date(outdoor.startTs).toISOString(), durationSec:Math.round(durationSec),
     distanceKm: outdoor.distanceM/1000, avgSpeedKmh, maxSpeedKmh: outdoor.maxSpeedKmh,
     elevGainM: Math.round(outdoor.elevGainM), calories, track: outdoor.track.slice(-400),
+    routeId: route?route.id:null, routeName: route?route.name:null,
   };
   if(durationSec<20){ toast('Sesión demasiado corta, no se ha guardado'); }
-  else { await saveSession(session); toast('Salida guardada · '+(outdoor.distanceM/1000).toFixed(1)+' km'); }
-  outdoor.running=false; outdoor.paused=false;
+  else {
+    let msg='Salida guardada · '+(outdoor.distanceM/1000).toFixed(1)+' km';
+    if(route){
+      const prevBest=bestTimeForRoute(route.id);
+      await saveSession(session);
+      if(prevBest!=null){
+        const diff=Math.round(durationSec-prevBest);
+        msg += diff<0 ? (' · ¡'+fmtHMS(Math.abs(diff))+' más rápido que tu mejor tiempo en '+route.name+'!') : (' · +'+fmtHMS(diff)+' vs tu mejor tiempo en '+route.name);
+      }
+    } else {
+      await saveSession(session);
+    }
+    toast(msg,4500);
+  }
+  outdoor.running=false; outdoor.paused=false; outdoor.routeProgressIdx=0;
   $('out-time').textContent='00:00:00'; $('out-dist').innerHTML='0.00<span class="stat-unit">km</span>';
   $('out-speed').innerHTML='0.0<span class="stat-unit">km/h</span>'; $('out-avgspeed').innerHTML='0.0<span class="stat-unit">km/h</span>';
   $('out-elev').innerHTML='0<span class="stat-unit">m</span>';
+  $('out-route-progress-pct').textContent='0%';
   outdoor.track=[]; drawOutdoorTrack();
+  if(outdoor.selectedRoute) renderRoutePickerName();
   renderOutControls();
 }
 renderOutControls();
-window.addEventListener('resize', ()=>{ if($('screen-outdoor').classList.contains('active')) drawOutdoorTrack(); });
+window.addEventListener('resize', ()=>{ if($('screen-outdoor').classList.contains('active')){ drawOutdoorTrack(); if(outdoor.selectedRoute) drawElevationProfile(); } });
+
+/* ================================================================
+   RUTAS (guardar/repetir salidas propias, importar GPX, puertos conocidos)
+   ================================================================ */
+function makeSyntheticClimb(startLat,startLon,endLat,endLon,startEle,endEle,n){
+  // Approximate, hand-built path between a climb's known start/summit coordinates - illustrative
+  // for following a target profile and comparing times, NOT a GPS-precise digitized track.
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const t=i/n;
+    const bend = Math.sin(t*Math.PI)*0.05*((startLon<endLon)?1:-1);
+    const lat = startLat + (endLat-startLat)*t;
+    const lon = startLon + (endLon-startLon)*t + bend;
+    const ease = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; // climbs often steepen partway up
+    const ele = Math.round(startEle + (endEle-startEle)*ease);
+    pts.push({lat:+lat.toFixed(5), lon:+lon.toFixed(5), ele});
+  }
+  return pts;
+}
+const PRESET_ROUTES=[
+  {id:'preset-alpedhuez', name:"Alpe d'Huez", region:"Francia · Alpes", distanceKm:13.8, elevGainM:1071, source:'preset',
+   points:makeSyntheticClimb(45.0680,6.0333,45.0919,6.0708,720,1815,20)},
+  {id:'preset-ventoux', name:'Mont Ventoux (desde Bédoin)', region:'Francia · Provenza', distanceKm:21.5, elevGainM:1617, source:'preset',
+   points:makeSyntheticClimb(44.1242,5.1789,44.1741,5.2786,310,1909,24)},
+  {id:'preset-angliru', name:"Alto de l'Angliru", region:'España · Asturias', distanceKm:12.5, elevGainM:1266, source:'preset',
+   points:makeSyntheticClimb(43.2333,-5.9236,43.2044,-5.9689,290,1560,18)},
+  {id:'preset-tourmalet', name:'Col du Tourmalet (desde Luz-Saint-Sauveur)', region:'Francia · Pirineos', distanceKm:19, elevGainM:1404, source:'preset',
+   points:makeSyntheticClimb(42.8722,0.0033,42.9103,0.1450,710,2115,22)},
+];
+
+function parseGPX(text){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('El archivo GPX no se pudo leer (formato inválido)');
+  const byTag = (root,tag)=>Array.from(root.getElementsByTagNameNS('*',tag)); // namespace-agnostic, matches real-world GPX exports
+  let trkpts = byTag(doc,'trkpt');
+  if(!trkpts.length) trkpts = byTag(doc,'rtept');
+  if(!trkpts.length) throw new Error('El archivo no contiene puntos de ruta (trkpt/rtept)');
+  let points = trkpts.map(el=>{
+    const lat=parseFloat(el.getAttribute('lat')), lon=parseFloat(el.getAttribute('lon'));
+    const eleEl = byTag(el,'ele')[0];
+    const ele = eleEl ? parseFloat(eleEl.textContent) : NaN;
+    return {lat,lon,ele:(isFinite(ele)?Math.round(ele):null)};
+  }).filter(p=>isFinite(p.lat)&&isFinite(p.lon));
+  if(points.length<2) throw new Error('La ruta GPX es demasiado corta');
+  const MAX_PTS=600; // keep storage/rendering light for very dense exports
+  if(points.length>MAX_PTS){
+    const step=Math.ceil(points.length/MAX_PTS);
+    points = points.filter((_,i)=>i%step===0 || i===points.length-1);
+  }
+  const nameEl = byTag(doc,'name')[0];
+  const name = nameEl && nameEl.textContent.trim() ? nameEl.textContent.trim() : null;
+  return {points, name};
+}
+
+function bestTimeForRoute(routeId){
+  const attempts = state.sessions.filter(s=>s.type==='outdoor' && s.routeId===routeId);
+  if(!attempts.length) return null;
+  return Math.min(...attempts.map(s=>s.durationSec));
+}
+
+function drawElevationProfile(){
+  const cv=$('out-elev-canvas'); if(!cv) return;
+  const r=outdoor.selectedRoute; if(!r || !r.points || r.points.length<2) return;
+  const ctx=cv.getContext('2d');
+  const w=cv.clientWidth||300, h=70;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,h);
+  const pts=r.points;
+  const stats=routeGeomStats(pts);
+  const eles=pts.map(p=>p.ele!=null?p.ele:0);
+  const minE=Math.min(...eles), maxE=Math.max(...eles,minE+1);
+  const total=stats.cum[stats.cum.length-1]||1;
+  const xy=i=>({x:(stats.cum[i]/total)*w, y:h-((eles[i]-minE)/(maxE-minE))*(h-6)-3});
+  ctx.beginPath();
+  pts.forEach((p,i)=>{ const {x,y}=xy(i); i===0?ctx.moveTo(x,h):ctx.lineTo(x,y); });
+  ctx.lineTo(w,h); ctx.closePath();
+  ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--accent-soft');
+  ctx.fill();
+  ctx.beginPath();
+  pts.forEach((p,i)=>{ const {x,y}=xy(i); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent');
+  ctx.lineWidth=2; ctx.stroke();
+  if(outdoor.running){
+    const idx=clamp(outdoor.routeProgressIdx,0,pts.length-1);
+    const {x,y}=xy(idx);
+    ctx.beginPath(); ctx.arc(x,y,4,0,7);
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text'); ctx.fill();
+  }
+}
+
+function updateRouteProgress(){
+  const r=outdoor.selectedRoute; if(!r || !outdoor.running) return;
+  const cur=outdoor.lastPos; if(!cur) return;
+  const stats=routeGeomStats(r.points);
+  let bestIdx=0,bestD=Infinity;
+  r.points.forEach((p,i)=>{
+    const d=haversineM(p.lat,p.lon,cur.lat,cur.lon);
+    if(d<bestD){bestD=d;bestIdx=i;}
+  });
+  outdoor.routeProgressIdx=bestIdx;
+  const total=stats.cum[stats.cum.length-1]||1;
+  const pct=clamp(Math.round((stats.cum[bestIdx]/total)*100),0,100);
+  $('out-route-progress-pct').textContent=pct+'%';
+  drawElevationProfile();
+}
+
+function renderRoutePickerName(){
+  const r=outdoor.selectedRoute;
+  $('out-route-name').textContent = r ? r.name : 'Sin ruta (libre)';
+  $('out-route-sub').textContent = r
+    ? (r.distanceKm.toFixed(1)+' km · '+(r.elevGainM||0)+' m de desnivel'+(r.source==='preset'?' · ruta ilustrativa, no GPS de precisión':''))
+    : 'Elige una ruta guardada, importa un GPX o sigue un puerto conocido';
+  $('out-route-progress-wrap').style.display = r ? 'block' : 'none';
+  if(r){
+    drawElevationProfile();
+    const best=bestTimeForRoute(r.id);
+    $('out-route-vsbest').textContent = best!=null ? ('Mejor: '+fmtHMS(best)) : 'Sin intentos previos';
+  }
+  drawOutdoorTrack();
+}
+
+function selectRoute(r){ outdoor.selectedRoute=r; outdoor.routeProgressIdx=0; renderRoutePickerName(); closePanel('route-picker'); closePanel('map'); }
+
+function routeCardHTML(r,withDelete){
+  return `<div class="card workout-card" data-rid="${r.id}">
+    <div class="row">
+      <div>
+        <span class="tag">${r.source==='gpx'?'GPX':(r.source==='preset'?'Puerto conocido':'Ruta propia')}</span>
+        <div style="font-weight:700;margin-top:6px;">${r.name}</div>
+        <div class="small muted">${r.distanceKm.toFixed(1)} km · ${r.elevGainM||0} m de desnivel${r.region?(' · '+r.region):''}</div>
+      </div>
+      ${withDelete?`<button class="btn-sm" data-del-rid="${r.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>`:''}
+    </div>
+  </div>`;
+}
+
+function renderRoutePicker(){
+  const ownRoutes = state.routes.filter(r=>r.source!=='preset');
+  $('rp-own-list').innerHTML = ownRoutes.length ? ownRoutes.map(r=>routeCardHTML(r,true)).join('') :
+    '<div class="small muted">Aún no tienes rutas guardadas. Termina una salida y guárdala, o importa un GPX.</div>';
+  qsa('[data-rid]',$('rp-own-list')).forEach(c=>c.addEventListener('click',(e)=>{
+    if(e.target.closest('[data-del-rid]')) return;
+    const r=state.routes.find(x=>x.id===c.dataset.rid); if(r) selectRoute(r);
+  }));
+  qsa('[data-del-rid]',$('rp-own-list')).forEach(b=>b.addEventListener('click',async (e)=>{
+    e.stopPropagation();
+    const id=b.dataset.delRid;
+    if(outdoor.selectedRoute && outdoor.selectedRoute.id===id){ outdoor.selectedRoute=null; renderRoutePickerName(); }
+    await deleteRoute(id); renderRoutePicker();
+    toast('Ruta eliminada');
+  }));
+  $('rp-preset-list').innerHTML = PRESET_ROUTES.map(r=>routeCardHTML(r,false)).join('');
+  qsa('[data-rid]',$('rp-preset-list')).forEach(c=>c.addEventListener('click',()=>{
+    const r=PRESET_ROUTES.find(x=>x.id===c.dataset.rid); if(r) selectRoute(r);
+  }));
+}
+$('btn-pick-route').addEventListener('click',()=>{ renderRoutePicker(); openPanel('route-picker'); });
+$('btn-close-route-picker').addEventListener('click',()=>closePanel('route-picker'));
+$('rp-pick-free').addEventListener('click',()=>{ outdoor.selectedRoute=null; renderRoutePickerName(); closePanel('route-picker'); });
+
+$('gpx-file-input').addEventListener('change', async (e)=>{
+  const file=e.target.files[0]; e.target.value='';
+  if(!file) return;
+  try{
+    const text=await file.text();
+    const {points,name}=parseGPX(text);
+    const stats=routeGeomStats(points);
+    const route={ name: name||file.name.replace(/\.gpx$/i,''), source:'gpx',
+      points, distanceKm:stats.distanceKm, elevGainM:stats.elevGainM };
+    await saveRoute(route);
+    renderRoutePicker();
+    toast('Ruta GPX importada: '+route.name);
+  }catch(err){
+    toast('No se pudo importar el GPX: '+(err&&err.message?err.message:'archivo no válido'));
+  }
+});
+
+/* interactive map of known routes (Leaflet + OpenStreetMap tiles, both free and with no API key) */
+let leafletMap=null, leafletLoadPromise=null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve();
+  if(leafletLoadPromise) return leafletLoadPromise;
+  leafletLoadPromise = new Promise((resolve,reject)=>{
+    const css=document.createElement('link');
+    css.rel='stylesheet'; css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(css);
+    const js=document.createElement('script');
+    js.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    js.onload=()=>resolve(); js.onerror=()=>reject(new Error('no se pudo cargar el mapa'));
+    document.head.appendChild(js);
+  });
+  return leafletLoadPromise;
+}
+async function openRouteMap(){
+  $('map-preset-list').innerHTML = PRESET_ROUTES.map(r=>routeCardHTML(r,false)).join('');
+  qsa('[data-rid]',$('map-preset-list')).forEach(c=>c.addEventListener('click',()=>{
+    const r=PRESET_ROUTES.find(x=>x.id===c.dataset.rid); if(r) selectRoute(r);
+  }));
+  openPanel('map');
+  try{
+    await loadLeaflet();
+    if(!leafletMap){
+      leafletMap=L.map('route-map');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom:17, attribution:'&copy; OpenStreetMap contributors'
+      }).addTo(leafletMap);
+    }
+    setTimeout(()=>leafletMap.invalidateSize(),50); // panel was just made visible, canvas size was 0 until now
+    const bounds=[];
+    PRESET_ROUTES.forEach(r=>{
+      const latlngs=r.points.map(p=>[p.lat,p.lon]);
+      L.polyline(latlngs,{color:'#c8481f',weight:4}).addTo(leafletMap).on('click',()=>selectRoute(r));
+      const mid=r.points[Math.round(r.points.length/2)];
+      L.marker([mid.lat,mid.lon]).addTo(leafletMap).bindPopup(r.name).on('click',()=>selectRoute(r));
+      latlngs.forEach(ll=>bounds.push(ll));
+    });
+    if(bounds.length) leafletMap.fitBounds(bounds,{padding:[20,20]});
+  }catch(e){
+    logDiag('Mapa: no se pudo cargar (revisa tu conexión) - '+(e&&e.message?e.message:e));
+  }
+}
+$('btn-open-map').addEventListener('click',openRouteMap);
+$('btn-close-map').addEventListener('click',()=>closePanel('map'));
 
 /* ================================================================
    BLUETOOTH MODULE (standard GATT profiles - brand independent)
@@ -1693,6 +2263,13 @@ function updateLiveUI(){
   $('in-cad').innerHTML = (live.cadence!=null?Math.round(live.cadence):'–')+'<span class="stat-unit">rpm</span>';
   $('in-hr').innerHTML = (live.hr!=null?Math.round(live.hr):'–')+'<span class="stat-unit">ppm</span>';
   $('in-speed').innerHTML = (live.speed!=null?live.speed.toFixed(1):'–')+'<span class="stat-unit">km/h</span>';
+  // mirror the same values into the fullscreen video overlay, if a camera session is active
+  if($('fv-power')){
+    $('fv-power').textContent = live.power!=null?Math.round(live.power):'–';
+    $('fv-cad').textContent = live.cadence!=null?Math.round(live.cadence):'–';
+    $('fv-hr').textContent = live.hr!=null?Math.round(live.hr):'–';
+    $('fv-time').textContent = fmtHMS(indoorRide.running?inElapsed():0);
+  }
 }
 
 /* Some sources (smartwatches broadcasting HR, some trainers) stop sending notifications after
@@ -1918,6 +2495,7 @@ function indoorTick(){
   if(live.speed!=null){ indoorRide.distanceM += (live.speed/3600)*1000*dtSec; }
   $('in-time').textContent=fmtHMS(elapsed);
   updateLiveUI();
+  updateVideoRecTime();
   $('in-dist').innerHTML = (indoorRide.distanceM/1000).toFixed(2)+'<span class="stat-unit">km</span>';
   const elapsedHrs = elapsed/3600;
   const avgSpeedNow = elapsedHrs>0 ? (indoorRide.distanceM/1000)/elapsedHrs : 0;
@@ -1972,6 +2550,78 @@ function renderInControls(){
     $('in-btn-stop').addEventListener('click',stopIndoor);
   }
 }
+/* ================================================================
+   VÍDEO (grabar mientras entrenas - cámara del móvil, pantalla dividida o completa)
+   ================================================================ */
+let videoStream=null, mediaRecorder=null, recordedChunks=[], recordStartTs=0;
+async function enableCameraPreview(){
+  try{
+    videoStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    $('in-video-preview').srcObject=videoStream;
+    $('in-video-wrap').style.display='block';
+    logDiag('Cámara: activada.');
+    return true;
+  }catch(e){
+    toast('No se pudo activar la cámara: '+(e&&e.name?e.name:e));
+    logDiag('Cámara: no se pudo activar ('+(e&&e.name?e.name:e)+').');
+    return false;
+  }
+}
+function disableCameraPreview(){
+  if(mediaRecorder && mediaRecorder.state!=='inactive'){ try{ mediaRecorder.stop(); }catch(e){} }
+  if(videoStream){ videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; }
+  $('in-video-preview').srcObject=null;
+  $('in-video-wrap').style.display='none';
+  $('in-video-recdot-wrap').style.display='none';
+}
+$('in-video-toggle').addEventListener('change', async (e)=>{
+  if(e.target.checked){ const ok=await enableCameraPreview(); e.target.checked=ok; }
+  else{ disableCameraPreview(); }
+});
+$('btn-video-fullscreen').addEventListener('click', ()=>{
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  const el=$('in-video-wrap');
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(req) req.call(el).catch(()=>{ toast('Tu navegador no admite pantalla completa aquí'); });
+});
+function startVideoRecording(){
+  if(!videoStream) return;
+  recordedChunks=[];
+  try{
+    const candidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+    const mimeType = window.MediaRecorder ? candidates.find(t=>MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) : null;
+    mediaRecorder = new MediaRecorder(videoStream, mimeType?{mimeType}:undefined);
+    mediaRecorder.ondataavailable = e=>{ if(e.data && e.data.size>0) recordedChunks.push(e.data); };
+    mediaRecorder.start(1000);
+    recordStartTs=Date.now();
+    $('in-video-recdot-wrap').style.display='flex';
+    logDiag('Vídeo: grabación iniciada.');
+  }catch(e){
+    logDiag('Vídeo: no se pudo grabar ('+(e&&e.message?e.message:e)+').');
+  }
+}
+function stopVideoRecordingAndSave(){
+  return new Promise(resolve=>{
+    if(!mediaRecorder || mediaRecorder.state==='inactive'){ resolve(null); return; }
+    mediaRecorder.onstop=()=>{
+      $('in-video-recdot-wrap').style.display='none';
+      resolve(recordedChunks.length ? new Blob(recordedChunks,{type:recordedChunks[0].type||'video/webm'}) : null);
+    };
+    mediaRecorder.stop();
+  });
+}
+function updateVideoRecTime(){
+  if(!(mediaRecorder && mediaRecorder.state==='recording')) return;
+  $('in-video-rectime').textContent = fmtMS((Date.now()-recordStartTs)/1000);
+}
+function downloadVideoClip(blob){
+  const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='octagon-cycling-'+Date.now()+'.'+ext;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),8000);
+}
+
 async function startIndoor(){
   Object.assign(indoorRide,{running:true,paused:false,startTs:Date.now(),pausedAccum:0,ivIndex:0,ivStartElapsed:0,samples:[],lastSampleTs:0,distanceM:0,lastTickTs:Date.now()});
   live.powerHistory=[];live.cadenceHistory=[];live.hrHistory=[];
@@ -1980,6 +2630,7 @@ async function startIndoor(){
   requestWakeLock();
   $('btn-pick-workout').disabled = true;
   if(indoorRide.workout){ applyCurrentTarget(); }
+  if(videoStream) startVideoRecording();
   renderInControls();
 }
 function pauseIndoor(){ indoorRide.paused=true; indoorRide.pauseStart=Date.now(); releaseWakeLock(); renderInControls(); }
@@ -1989,6 +2640,7 @@ async function stopIndoor(){
   clearInterval(indoorRide.timerId);
   releaseWakeLock();
   await disableErg();
+  const clipBlob = await stopVideoRecordingAndSave();
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
   const avgPower=avg(live.powerHistory), avgCadence=avg(live.cadenceHistory), avgHr=avg(live.hrHistory);
   const totalKJ = indoorRide.samples.reduce((a,s,i,arr)=>{ if(i===0) return 0; const dt=(arr[i].t-arr[i-1].t); return a+((s.power||0)*dt)/1000; },0);
@@ -2000,6 +2652,7 @@ async function stopIndoor(){
     samples: indoorRide.samples };
   if(durationSec<20){ toast('Sesión demasiado corta, no se ha guardado'); }
   else { await saveSession(session); toast('Sesión indoor guardada'); }
+  if(clipBlob){ downloadVideoClip(clipBlob); toast('Vídeo del entreno guardado en tus descargas',4000); }
   indoorRide.running=false; indoorRide.paused=false; indoorRide.workout=null;
   $('in-time').textContent='00:00:00'; $('in-kcal').textContent='0';
   $('in-dist').innerHTML='0.00<span class="stat-unit">km</span>'; $('in-avgspeed').innerHTML='0.0<span class="stat-unit">km/h</span>'; $('in-speed').innerHTML='–<span class="stat-unit">km/h</span>';
@@ -2126,6 +2779,107 @@ function renderHistoryScreen(){
   qsa('[data-session-id]',$('hist-list')).forEach(c=>c.addEventListener('click',()=>openSessionDetail(c.dataset.sessionId)));
 }
 
+/* ================================================================
+   COMPARTIR ENTRENO (imagen-resumen + hoja nativa de compartir de Android)
+   ================================================================ */
+function shareSummaryText(s){
+  if(s.type==='outdoor'){
+    return `Acabo de rodar ${s.distanceKm.toFixed(1)} km con Octagon Cycling · ${fmtHMS(s.durationSec)} · ${Math.round(s.elevGainM||0)} m de desnivel`;
+  }
+  return `Entreno indoor completado con Octagon Cycling · ${fmtHMS(s.durationSec)}`+(s.avgPower?(' · '+Math.round(s.avgPower)+' W medios'):'');
+}
+function renderShareImage(s){
+  return new Promise((resolve)=>{
+    const W=1080,H=1350;
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const ctx=cv.getContext('2d');
+    const C={bg:'#14171a',card:'#1e2328',accent:'#ff8452',accentInk:'#1c1006',text:'#eef0f2',muted:'#9aa2a9'};
+    ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
+    // header: brand mark + wordmark
+    ctx.fillStyle=C.accent; ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(64,64,80,80,18); else ctx.rect(64,64,80,80);
+    ctx.fill();
+    ctx.fillStyle=C.accentInk; ctx.font='700 36px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('OC',104,104);
+    ctx.fillStyle=C.text; ctx.font='700 40px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.fillText('OCTAGON CYCLING',168,116);
+    // kicker + date
+    ctx.fillStyle=C.muted; ctx.font='600 26px sans-serif';
+    ctx.fillText((s.type==='outdoor'?'SALIDA EXTERIOR':'ENTRENO INDOOR'),64,220);
+    ctx.fillStyle=C.text; ctx.font='700 42px sans-serif';
+    ctx.fillText(s.startedAt?fmtDateLong(s.startedAt):'',64,268);
+    let gridTop=340;
+    // mini route sketch for outdoor rides
+    if(s.type==='outdoor' && s.track && s.track.length>1){
+      const mapH=340, mapY=320;
+      ctx.fillStyle=C.card; ctx.fillRect(64,mapY,W-128,mapH);
+      const pts=s.track;
+      const lats=pts.map(p=>p.lat), lons=pts.map(p=>p.lon);
+      const minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
+      const pad=48;
+      const latSpan=Math.max(maxLat-minLat,0.0004), lonSpan=Math.max(maxLon-minLon,0.0004);
+      const sc=Math.min((W-128-2*pad)/lonSpan,(mapH-2*pad)/latSpan);
+      const midLat=(minLat+maxLat)/2, midLon=(minLon+maxLon)/2;
+      const cx2=64+(W-128)/2, cy2=mapY+mapH/2;
+      ctx.beginPath();
+      pts.forEach((p,i)=>{
+        const x=cx2+(p.lon-midLon)*sc*Math.cos(midLat*Math.PI/180);
+        const y=cy2-(p.lat-midLat)*sc;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      });
+      ctx.strokeStyle=C.accent; ctx.lineWidth=6; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke();
+      gridTop=mapY+mapH+56;
+    }
+    // stat grid (2 columns)
+    const stats=[];
+    if(s.type==='outdoor'){
+      stats.push(['DISTANCIA', s.distanceKm.toFixed(1)+' km']);
+      stats.push(['DURACIÓN', fmtHMS(s.durationSec)]);
+      stats.push(['VEL. MEDIA', s.avgSpeedKmh.toFixed(1)+' km/h']);
+      stats.push(['DESNIVEL', Math.round(s.elevGainM||0)+' m']);
+    } else {
+      stats.push(['DURACIÓN', fmtHMS(s.durationSec)]);
+      stats.push(['CALORÍAS', (s.calories||0)+' kcal']);
+      if(s.avgPower) stats.push(['POTENCIA MEDIA', Math.round(s.avgPower)+' W']);
+      if(s.avgHr) stats.push(['FC MEDIA', Math.round(s.avgHr)+' ppm']);
+    }
+    const cols=2, gap=24, cellW=(W-128-gap)/cols, cellH=180;
+    stats.slice(0,4).forEach((st,i)=>{
+      const cx3=64+(i%cols)*(cellW+gap), cy3=gridTop+Math.floor(i/cols)*(cellH+gap);
+      ctx.fillStyle=C.card; ctx.fillRect(cx3,cy3,cellW,cellH);
+      ctx.fillStyle=C.muted; ctx.font='600 22px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      ctx.fillText(st[0],cx3+28,cy3+48);
+      ctx.fillStyle=C.accent; ctx.font='700 52px sans-serif';
+      ctx.fillText(st[1],cx3+28,cy3+120);
+    });
+    ctx.fillStyle=C.muted; ctx.font='500 24px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Octagon Cycling',W/2,H-56);
+    cv.toBlob(blob=>resolve(blob),'image/png',0.92);
+  });
+}
+async function shareSession(s){
+  try{
+    const blob=await renderShareImage(s);
+    if(!blob) throw new Error('no se pudo generar la imagen');
+    const file=new File([blob],'octagon-cycling.png',{type:'image/png'});
+    const text=shareSummaryText(s);
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'Octagon Cycling', text});
+    } else if(navigator.share){
+      await navigator.share({title:'Octagon Cycling', text});
+    } else {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='octagon-cycling.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+      toast('Tu navegador no admite compartir directamente: imagen descargada, compártela donde quieras');
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return; // user cancelled the native share sheet - not an error
+    toast('No se pudo compartir: '+(e&&e.message?e.message:e));
+  }
+}
+
 function openSessionDetail(id){
   const s=state.sessions.find(x=>x.id===id); if(!s) return;
   $('detail-title').textContent = s.type==='outdoor'?'Salida exterior':(s.workoutName||'Indoor libre');
@@ -2154,6 +2908,12 @@ function openSessionDetail(id){
       html += `<div class="section-title">Cadencia durante la sesión</div><canvas id="detail-canvas-cad" height="110"></canvas>`;
     }
   }
+  html += `<div class="btn-row" style="margin-top:16px;">`;
+  html += `<button class="btn btn-sm" id="btn-share-session" style="flex:1;">Compartir</button>`;
+  if(s.type==='outdoor' && s.track && s.track.length>1 && !s.routeId){
+    html += `<button class="btn btn-sm" id="btn-save-as-route" style="flex:1;">Guardar como ruta</button>`;
+  }
+  html += `</div>`;
   $('detail-body').innerHTML = html;
   openPanel('detail');
   requestAnimationFrame(()=>{
@@ -2163,6 +2923,17 @@ function openSessionDetail(id){
       if($('detail-canvas-cad')) drawCadenceChart(s.samples);
     }
   });
+  if($('btn-save-as-route')){
+    $('btn-save-as-route').addEventListener('click', async ()=>{
+      const stats=routeGeomStats(s.track);
+      const name=(s.startedAt?fmtDateShort(s.startedAt)+' · ':'')+'Ruta de '+s.distanceKm.toFixed(1)+' km';
+      const route={ name, source:'recorded', points:s.track, distanceKm:stats.distanceKm, elevGainM:stats.elevGainM||Math.round(s.elevGainM||0) };
+      await saveRoute(route);
+      toast('Ruta guardada: '+route.name);
+      closePanel('detail');
+    });
+  }
+  $('btn-share-session').addEventListener('click', ()=>shareSession(s));
 }
 function drawStaticTrack(track){
   const cv=$('detail-canvas'); if(!cv) return; const ctx=cv.getContext('2d');
